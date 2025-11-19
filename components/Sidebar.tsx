@@ -1,5 +1,5 @@
-import React from 'react';
-import { LayoutGrid, Code, LogOut, Power, Cpu } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { LayoutGrid, Code, LogOut, Cpu, Signal, Clock } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -8,13 +8,20 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onLogout }) => {
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const navItems = [
     { id: 'dashboard', label: 'DASHBOARD', icon: LayoutGrid },
     { id: 'python', label: 'INTEGRATION', icon: Code },
   ];
 
   return (
-    <div className="h-full flex flex-col bg-rog-black border-r border-rog-border relative z-20">
+    <div className="h-full flex flex-col bg-rog-black border-r border-rog-border relative z-20 transition-all duration-300">
       {/* Logo Area */}
       <div className="p-8 pb-12">
         <div className="flex items-center gap-3 mb-2">
@@ -25,8 +32,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onLogout }) =
                 <div className="font-black text-2xl tracking-tighter text-white leading-none">
                 ROG<span className="text-rog-red">ADMIN</span>
                 </div>
-                <div className="text-[10px] text-rog-accent font-mono tracking-widest flex items-center gap-1">
-                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping"></div>
+                <div className="text-[10px] text-gray-500 font-mono tracking-widest flex items-center gap-2">
+                    <Signal className="w-3 h-3 text-green-500 animate-pulse" />
                     SYSTEM ONLINE
                 </div>
             </div>
@@ -64,9 +71,16 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onLogout }) =
 
       {/* Footer */}
       <div className="p-6 border-t border-gray-900">
+        {/* Live Clock */}
+        <div className="mb-4 flex items-center gap-2 text-gray-600 font-mono text-xs">
+            <Clock className="w-3 h-3" />
+            <span>{time.toLocaleTimeString()}</span>
+        </div>
+
         <button
             onClick={onLogout}
             className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-white transition-all group"
+            title="Logout"
         >
             <LogOut className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             <span>Terminate_Session</span>

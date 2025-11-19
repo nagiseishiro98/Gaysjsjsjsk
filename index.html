@@ -29,25 +29,16 @@
                 dim: '#666666'
               }
             },
-            backgroundImage: {
-              'grid-pattern': "linear-gradient(to right, #1a1a1a 1px, transparent 1px), linear-gradient(to bottom, #1a1a1a 1px, transparent 1px)",
-              'scanline': "linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2))",
-            },
-            backgroundSize: {
-              'grid': '40px 40px',
-              'scan': '100% 4px'
-            },
             animation: {
               'slide-up': 'slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
               'fade-in': 'fadeIn 0.3s ease-out forwards',
               'pulse-glow': 'pulseGlow 2s infinite',
               'glitch': 'glitch 1s infinite',
-              'scan': 'scan 4s linear infinite',
             },
             keyframes: {
               slideUp: {
-                '0%': { opacity: '0', transform: 'translateY(30px) rotateX(10deg)' },
-                '100%': { opacity: '1', transform: 'translateY(0) rotateX(0)' }
+                '0%': { opacity: '0', transform: 'translateY(30px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' }
               },
               fadeIn: {
                 '0%': { opacity: '0' },
@@ -56,10 +47,6 @@
               pulseGlow: {
                 '0%, 100%': { boxShadow: '0 0 5px rgba(255, 0, 60, 0.2)' },
                 '50%': { boxShadow: '0 0 20px rgba(255, 0, 60, 0.6)' }
-              },
-              scan: {
-                '0%': { transform: 'translateY(-100%)' },
-                '100%': { transform: 'translateY(100%)' }
               }
             }
           },
@@ -74,33 +61,17 @@
         overflow: hidden;
       }
 
-      /* 3D Context */
-      .scene-3d {
-        perspective: 1200px;
-        transform-style: preserve-3d;
-      }
-
-      .tilt-panel {
-        transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s ease;
-        transform-style: preserve-3d;
-      }
-      .tilt-panel:hover {
-        transform: translateZ(10px) rotateX(2deg);
-        box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.8);
-        z-index: 10;
-      }
-
       /* Custom Scrollbar */
       ::-webkit-scrollbar {
-        width: 5px;
-        height: 5px;
+        width: 6px;
+        height: 6px;
       }
       ::-webkit-scrollbar-track {
         background: #0a0a0c;
       }
       ::-webkit-scrollbar-thumb {
         background: #333;
-        border-radius: 2px;
+        border-radius: 0;
       }
       ::-webkit-scrollbar-thumb:hover {
         background: #ff003c;
@@ -130,20 +101,13 @@
       .text-glow {
         text-shadow: 0 0 10px rgba(255, 0, 60, 0.5);
       }
-
-      /* Scanline Overlay */
-      .scanlines::before {
-        content: " ";
-        display: block;
-        position: absolute;
-        top: 0;
-        left: 0;
-        bottom: 0;
-        right: 0;
-        background: linear-gradient(to bottom, rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
-        background-size: 100% 4px;
-        z-index: 999;
-        pointer-events: none;
+      
+      input:-webkit-autofill,
+      input:-webkit-autofill:hover, 
+      input:-webkit-autofill:focus, 
+      input:-webkit-autofill:active{
+          -webkit-box-shadow: 0 0 0 30px #121214 inset !important;
+          -webkit-text-fill-color: white !important;
       }
     </style>
   <script type="importmap">

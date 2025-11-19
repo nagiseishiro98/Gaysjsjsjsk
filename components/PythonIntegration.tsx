@@ -1,25 +1,112 @@
 import React, { useState } from 'react';
-import { Check, Copy, Play, Terminal } from 'lucide-react';
-import { generatePythonCode } from '../services/geminiService';
+import { Check, Copy, Terminal, Code2 } from 'lucide-react';
+
+const STATIC_PYTHON_CODE = `import requests
+import hashlib
+import uuid
+import platform
+import sys
+import time
+
+# ==========================================
+# ROG ADMIN CLIENT LOADER CONFIGURATION
+# ==========================================
+API_URL = "https://your-server.com/api/validate"
+APP_NAME = "SECURE_APP_V1"
+
+def get_hwid():
+    """
+    Generates a stable, unique Hardware ID for the current machine.
+    Combines MAC address, processor info, and OS details.
+    """
+    try:
+        mac = uuid.getnode()
+        machine = platform.machine()
+        processor = platform.processor()
+        system = platform.system()
+        
+        # Create a raw unique string
+        raw_id = f"{mac}-{machine}-{processor}-{system}"
+        
+        # Hash it for security and standard length
+        return hashlib.sha256(raw_id.encode()).hexdigest()
+    except Exception as e:
+        print(f"[!] HWID Generation Error: {e}")
+        return None
+
+def validate_key(license_key):
+    """
+    Sends the License Key and HWID to the server for validation.
+    """
+    hwid = get_hwid()
+    if not hwid:
+        print("[-] Failed to generate Hardware ID.")
+        return False
+        
+    print(f"[*] Verifying Key for HWID: {hwid[:8]}...")
+    
+    payload = {
+        "key": license_key,
+        "hwid": hwid,
+        "app_name": APP_NAME
+    }
+    
+    try:
+        # In production, ensure your API uses HTTPS
+        response = requests.post(API_URL, json=payload, timeout=15)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("valid") is True:
+                expiration = data.get("expires_at", "LIFETIME")
+                print(f"[+] LOGIN SUCCESSFUL. Expiration: {expiration}")
+                return True
+            else:
+                reason = data.get("message", "Unknown Error")
+                print(f"[-] LOGIN FAILED: {reason}")
+                return False
+                
+        elif response.status_code == 403:
+            print("[-] ACCESS DENIED: Key is bound to another device.")
+            return False
+        elif response.status_code == 404:
+            print("[-] ACCESS DENIED: Key not found.")
+            return False
+        else:
+            print(f"[-] Server Error: {response.status_code}")
+            return False
+            
+    except requests.RequestException as e:
+        print(f"[-] Connection to server failed: {e}")
+        return False
+
+def main_program():
+    """
+    The actual application code runs here after successful validation.
+    """
+    print("\\n" + "="*40)
+    print(f" WELCOME TO {APP_NAME}")
+    print("="*40)
+    print("[*] Loading assets...")
+    time.sleep(1)
+    print("[*] System ready.")
+    # Your main logic here...
+    input("\\nPress Enter to exit...")
+
+if __name__ == "__main__":
+    print("--- SECURITY LOADER ---")
+    user_key = input("Enter License Key: ").strip()
+    
+    if validate_key(user_key):
+        main_program()
+    else:
+        print("[-] Exiting due to invalid license.")
+        time.sleep(2)
+        sys.exit(1)`;
 
 const PythonIntegration: React.FC = () => {
-  const [code, setCode] = useState<string>(`# WAITING FOR COMMAND...\n# SELECT SECURITY PROTOCOL TO BEGIN.`);
-  const [isLoading, setIsLoading] = useState(false);
-  const [securityLevel, setSecurityLevel] = useState('Standard');
+  const [code] = useState<string>(STATIC_PYTHON_CODE);
   const [copied, setCopied] = useState(false);
-
-  const handleGenerate = async () => {
-    setIsLoading(true);
-    setCode("# INITIATING AI PROTOCOL...\n# GENERATING SECURE BOOTLOADER...");
-    try {
-      const generated = await generatePythonCode(securityLevel);
-      setCode(generated);
-    } catch (e) {
-      setCode("# SYSTEM ERROR: CONNECTION REFUSED.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(code);
@@ -29,69 +116,39 @@ const PythonIntegration: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full md:p-8 p-4 animate-slide-in">
-      {/* Top Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-6 bg-rog-panel p-6 border border-gray-800 clip-rog-inv">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4 bg-rog-panel p-6 border-b border-rog-red/30">
         <div>
            <h2 className="text-xl font-bold uppercase italic tracking-wider text-white flex items-center gap-2">
-               <Terminal className="w-5 h-5 text-rog-red" />
-               Loader Generation
+               <Code2 className="w-6 h-6 text-rog-red" />
+               Client Loader Script
            </h2>
-           <p className="text-xs text-gray-500 mt-1 font-mono">GENERATE PYTHON 3.X COMPATIBLE CLIENT SCRIPTS</p>
+           <p className="text-xs text-gray-400 mt-1 font-mono">PYTHON 3.X READY // COPY AND PASTE INTO YOUR PROJECT</p>
         </div>
 
-        <div className="flex items-center gap-4">
-            <div className="flex bg-black p-1 border border-gray-800">
-              {['Standard', 'High'].map((level) => (
-                  <button
-                    key={level}
-                    onClick={() => setSecurityLevel(level)}
-                    className={`px-6 py-2 text-xs font-bold uppercase tracking-widest transition-all ${
-                        securityLevel === level 
-                        ? 'bg-rog-red text-white shadow-[0_0_10px_rgba(255,0,60,0.3)]' 
-                        : 'text-gray-500 hover:text-white'
-                    }`}
-                  >
-                    {level}
-                  </button>
-              ))}
-           </div>
-           
-           <button
-             onClick={handleGenerate}
-             disabled={isLoading}
-             className="bg-white text-black px-6 py-3 text-sm font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-gray-200 disabled:opacity-50 clip-rog transition-transform active:scale-95"
-           >
-             {isLoading ? 'PROCESSING...' : <><Play className="w-4 h-4 fill-current" /> EXECUTE</>}
-           </button>
-        </div>
+        <button 
+            onClick={handleCopy}
+            className={`px-6 py-3 text-sm font-bold uppercase tracking-widest flex items-center gap-2 transition-all clip-angle ${copied ? 'bg-green-600 text-white' : 'bg-white text-black hover:bg-gray-200'}`}
+        >
+            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            {copied ? 'COPIED' : 'COPY CODE'}
+        </button>
       </div>
 
       {/* Terminal Window */}
-      <div className="flex-1 bg-black border border-gray-800 relative flex flex-col shadow-2xl font-mono">
-         {/* Terminal Header */}
-         <div className="flex items-center justify-between px-4 py-2 bg-rog-dark border-b border-gray-800">
-            <div className="flex gap-2">
-                <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-            </div>
-            <span className="text-xs text-gray-500 tracking-widest uppercase">client_loader.py</span>
-            <button 
-                onClick={handleCopy}
-                className="text-xs text-rog-accent hover:text-white flex items-center gap-2 uppercase font-bold"
-            >
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                {copied ? 'BUFFER COPIED' : 'COPY BUFFER'}
-            </button>
+      <div className="flex-1 bg-[#08080a] border border-gray-800 relative flex flex-col shadow-2xl font-mono rounded-sm overflow-hidden">
+         {/* Terminal Top Bar */}
+         <div className="flex items-center px-4 py-2 bg-[#1a1a1d] border-b border-gray-800">
+            <Terminal className="w-3 h-3 text-gray-500 mr-2" />
+            <span className="text-xs text-gray-400 tracking-widest uppercase">loader.py</span>
          </div>
          
          {/* Code Area */}
-         <div className="flex-1 overflow-auto p-6 relative">
-            {/* Matrix Rain Effect Overlay (Subtle) */}
-            <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(255,0,0,0.02),rgba(255,0,0,0.06))] z-0 bg-[length:100%_2px,3px_100%]"></div>
-            
-            <pre className="relative z-10 text-sm text-gray-300 leading-relaxed selection:bg-rog-red selection:text-white">
-                <code>{code}</code>
+         <div className="flex-1 overflow-auto p-6 custom-scrollbar">
+            <pre className="text-sm text-gray-300 leading-relaxed selection:bg-rog-red selection:text-white">
+                <code style={{ fontFamily: '"Share Tech Mono", monospace' }}>
+                    {code}
+                </code>
             </pre>
          </div>
       </div>

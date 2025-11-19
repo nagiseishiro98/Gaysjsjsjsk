@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, ArrowRight, Cpu, ShieldCheck } from 'lucide-react';
+import { Lock, ArrowRight, Cpu, ShieldCheck, User } from 'lucide-react';
 
 interface LoginProps {
   onLogin: () => void;
@@ -20,73 +20,69 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       if (username === 'admin' && password === 'admin') {
         onLogin();
       } else {
-        setError('INVALID_CREDENTIALS');
+        setError('ACCESS DENIED');
         setIsLoading(false);
       }
-    }, 1200);
+    }, 1000);
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#050505] relative overflow-hidden perspective-[1500px]">
-      {/* Subtle Atmospheric Glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-rog-red/5 blur-[150px] rounded-full pointer-events-none"></div>
-
-      {/* 3D Floating Monolith Card */}
-      <div className="w-full max-w-sm relative z-10 group">
-         
-         {/* Main Card Body */}
-         <div className="bg-[#0e0e10] border-l-4 border-rog-red p-10 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.7)] transform transition-transform duration-500 hover:rotate-y-2 hover:rotate-x-2 hover:translate-z-4 relative overflow-hidden">
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#050505] relative overflow-hidden p-4">
+      {/* Simple Background Accents */}
+      <div className="absolute top-0 left-0 w-full h-1 bg-rog-red opacity-50"></div>
+      <div className="absolute bottom-0 right-0 w-1/3 h-1/3 bg-rog-red/5 blur-[100px] rounded-full pointer-events-none"></div>
+      
+      {/* Main Login Card */}
+      <div className="relative z-10 w-full max-w-md p-1">
+         <div className="bg-[#0e0e10] border border-gray-800 relative p-6 md:p-10 shadow-2xl clip-angle">
              
-             {/* Top Accent Bar */}
-             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-rog-red via-transparent to-transparent"></div>
-
              {/* Header */}
-             <div className="mb-10 relative">
-                <div className="flex items-center gap-3 mb-2">
-                    <div className="bg-rog-red p-1.5 rounded-sm shadow-[0_0_15px_#ff003c]">
-                        <Cpu className="w-6 h-6 text-white" />
-                    </div>
-                    <h1 className="text-3xl font-black italic text-white tracking-tighter leading-none">
-                        ROG<span className="text-rog-red">ADMIN</span>
-                    </h1>
+             <div className="flex flex-col items-center mb-8 md:mb-12">
+                <div className="bg-rog-red/10 p-3 md:p-4 rounded-full border border-rog-red/20 mb-4">
+                    <Cpu className="w-8 h-8 md:w-10 md:h-10 text-rog-red" />
                 </div>
-                <div className="text-gray-500 text-[10px] uppercase tracking-[0.3em] font-bold ml-1">
-                    System Security Core
+                <h1 className="text-3xl md:text-4xl font-black italic text-white tracking-tighter leading-none mb-1">
+                    ROG<span className="text-rog-red">ADMIN</span>
+                </h1>
+                <div className="text-gray-500 text-[10px] md:text-xs font-mono tracking-[0.4em] uppercase">
+                    Secure Access Portal
                 </div>
              </div>
 
-             <form onSubmit={handleLogin} className="space-y-6">
-               <div className="space-y-1 group/input">
-                 <div className="flex justify-between items-center">
-                    <label className="text-[10px] text-rog-red font-bold uppercase tracking-widest">Operator ID</label>
-                    <span className="text-[10px] text-gray-700 font-mono opacity-0 group-focus-within/input:opacity-100 transition-opacity">USR_ID</span>
+             <form onSubmit={handleLogin} className="space-y-4 md:space-y-6">
+               <div className="space-y-2">
+                 <div className="relative group">
+                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                     <User className="w-4 h-4 text-gray-600 group-focus-within:text-rog-red transition-colors" />
+                   </div>
+                   <input 
+                     type="text" 
+                     value={username}
+                     onChange={(e) => setUsername(e.target.value)}
+                     className="w-full bg-[#151518] text-white py-3 pl-10 pr-4 border border-gray-800 focus:border-rog-red outline-none transition-all font-mono text-sm placeholder-gray-600 hover:border-gray-700"
+                     placeholder="OPERATOR ID"
+                     autoComplete="off"
+                   />
                  </div>
-                 <input 
-                   type="text" 
-                   value={username}
-                   onChange={(e) => setUsername(e.target.value)}
-                   className="w-full bg-[#151518] text-white p-3 border-b-2 border-gray-800 focus:border-rog-red outline-none transition-all font-mono text-sm placeholder-gray-700"
-                   placeholder="ENTER USERNAME"
-                   autoComplete="off"
-                 />
                </div>
                
-               <div className="space-y-1 group/input">
-                 <div className="flex justify-between items-center">
-                    <label className="text-[10px] text-rog-red font-bold uppercase tracking-widest">Access Code</label>
-                    <Lock className="w-3 h-3 text-gray-700 group-focus-within/input:text-white transition-colors" />
+               <div className="space-y-2">
+                 <div className="relative group">
+                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                     <Lock className="w-4 h-4 text-gray-600 group-focus-within:text-rog-red transition-colors" />
+                   </div>
+                   <input
+                     type="password"
+                     value={password}
+                     onChange={(e) => setPassword(e.target.value)}
+                     className="w-full bg-[#151518] text-white py-3 pl-10 pr-4 border border-gray-800 focus:border-rog-red outline-none transition-all font-mono text-sm placeholder-gray-600 hover:border-gray-700"
+                     placeholder="ACCESS CODE"
+                   />
                  </div>
-                 <input
-                   type="password"
-                   value={password}
-                   onChange={(e) => setPassword(e.target.value)}
-                   className="w-full bg-[#151518] text-white p-3 border-b-2 border-gray-800 focus:border-rog-red outline-none transition-all font-mono text-sm placeholder-gray-700"
-                   placeholder="ENTER PASSWORD"
-                 />
                </div>
 
                {error && (
-                   <div className="text-xs text-rog-red text-center font-mono animate-pulse py-2 bg-rog-red/5 border border-rog-red/10">
+                   <div className="text-xs text-rog-red text-center font-mono py-2 border-t border-b border-rog-red/20 bg-rog-red/5">
                        [ ! ] {error}
                    </div>
                )}
@@ -94,30 +90,21 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                <button
                    type="submit"
                    disabled={isLoading}
-                   className="w-full mt-4 bg-white text-black hover:bg-rog-red hover:text-white font-black italic text-lg py-4 uppercase tracking-widest transition-all hover:shadow-[0_0_30px_rgba(255,0,60,0.4)] flex items-center justify-center gap-3 group/btn"
+                   className="w-full mt-6 bg-rog-red hover:bg-red-600 text-white font-bold py-3 uppercase tracking-widest transition-all flex items-center justify-center gap-2 group clip-angle-top active:scale-[0.98]"
                >
-                   <span className="relative z-10">
-                       {isLoading ? 'Verifying...' : 'Authenticate'} 
-                   </span>
-                   {!isLoading && <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />}
+                   <span>{isLoading ? 'Verifying...' : 'Initialize System'}</span>
+                   {!isLoading && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
                </button>
              </form>
 
-             {/* Footer Status */}
-             <div className="mt-8 pt-6 border-t border-gray-900 flex justify-between items-center">
-                 <div className="flex items-center gap-2">
-                     <div className={`w-1.5 h-1.5 rounded-full ${isLoading ? 'bg-yellow-500 animate-ping' : 'bg-rog-red'}`}></div>
-                     <span className="text-[10px] text-gray-600 font-mono tracking-wider">
-                         {isLoading ? 'UPLINK_ESTABLISHED' : 'SERVER_LOCKED'}
-                     </span>
-                 </div>
-                 <ShieldCheck className="w-4 h-4 text-gray-800" />
+             {/* Footer */}
+             <div className="mt-8 md:mt-10 flex justify-center items-center gap-2 opacity-30 hover:opacity-60 transition-opacity">
+                 <ShieldCheck className="w-3 h-3 text-gray-400" />
+                 <span className="text-[10px] text-gray-400 font-mono tracking-wider">
+                     ENCRYPTED CONNECTION // V.2.5
+                 </span>
              </div>
          </div>
-      </div>
-      
-      <div className="absolute bottom-8 text-center w-full text-gray-700 text-[10px] font-mono tracking-[0.2em] opacity-40">
-          SECURE PROTOCOL V.2.4 // UNAUTHORIZED ACCESS IS PROHIBITED
       </div>
     </div>
   );
