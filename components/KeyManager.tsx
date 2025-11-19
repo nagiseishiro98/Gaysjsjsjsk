@@ -14,6 +14,9 @@ const KeyManager: React.FC = () => {
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
+  // Error State
+  const [globalError, setGlobalError] = useState<string | null>(null);
+
   // Form State
   const [prefix, setPrefix] = useState('ROG');
   const [durationValue, setDurationValue] = useState(30);
@@ -24,11 +27,28 @@ const KeyManager: React.FC = () => {
   // Fake Stats
   const [serverLoad, setServerLoad] = useState(34);
 
+  const handleDbError = (error: any) => {
+    console.error("DB Error:", error);
+    if (error.code === 'permission-denied') {
+      setGlobalError("ACCESS DENIED: Firestore Rules Blocked. Check Firebase Console > Firestore > Rules. Ensure 'match /keys/{id}' allows read/write if request.auth != null");
+    } else if (error.code === 'failed-precondition') {
+      setGlobalError("QUERY ERROR: Missing Index. Check browser console for the creation link.");
+    } else {
+      setGlobalError(error.message || "Database Operation Failed");
+    }
+  };
+
   const refreshKeys = useCallback(async () => {
     setIsLoading(true);
-    const data = await getKeys();
-    setKeys(data);
-    setIsLoading(false);
+    setGlobalError(null);
+    try {
+      const data = await getKeys();
+      setKeys(data);
+    } catch (error) {
+      handleDbError(error);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -45,34 +65,57 @@ const KeyManager: React.FC = () => {
   const handleGenerate = async (e?: React.FormEvent) => {
     if(e) e.preventDefault();
     setIsLoading(true);
-    await createKey({ prefix, durationValue, durationType, note });
-    setNote('');
-    setCreateModalOpen(false);
-    await refreshKeys();
-    setIsLoading(false);
+    setGlobalError(null);
+    try {
+      await createKey({ prefix, durationValue, durationType, note });
+      setNote('');
+      setCreateModalOpen(false);
+      await refreshKeys();
+    } catch (error) {
+      handleDbError(error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleToggleStatus = async (id: string, currentStatus: KeyStatus) => {
+      setGlobalError(null);
       // Optimistic update
       const updatedKeys = keys.map(k => 
           k.id === id ? { ...k, status: k.status === KeyStatus.ACTIVE ? KeyStatus.PAUSED : KeyStatus.ACTIVE } : k
       );
       setKeys(updatedKeys);
       
-      await toggleKeyStatus(id, currentStatus);
-      await refreshKeys(); // Sync with DB
+      try {
+        await toggleKeyStatus(id, currentStatus);
+        await refreshKeys(); // Sync with DB
+      } catch (error) {
+        handleDbError(error);
+        // Revert on error if needed, but refreshKeys usually fixes it
+        await refreshKeys();
+      }
   };
 
   const handleDelete = async (id: string) => {
       if(window.confirm("Permanently delete this key from Database?")) {
-          await deleteKey(id);
-          await refreshKeys();
+          setGlobalError(null);
+          try {
+            await deleteKey(id);
+            await refreshKeys();
+          } catch (error) {
+            handleDbError(error);
+          }
       }
   };
 
   const handleResetHwid = async (id: string) => {
-      await resetHwid(id);
-      await refreshKeys();
+      setGlobalError(null);
+      try {
+        await resetHwid(id);
+        await refreshKeys();
+      } catch (error) {
+        handleDbError(error);
+      }
   }
 
   const handleCopy = async (text: string, id: string) => {
@@ -110,6 +153,15 @@ const KeyManager: React.FC = () => {
   return (
     <div className="flex flex-col h-full w-full gap-6 text-rog-text animate-slide-up pb-20 md:pb-0">
       
+      {/* Global Error Banner */}
+      {globalError && (
+        <div className="bg-red-500/10 border border-rog-red text-rog-red p-4 rounded-sm flex items-start md:items-center gap-3 animate-pulse-glow shrink-0 relative">
+            <AlertTriangle className="w-5 h-5 shrink-0" />
+            <span className="font-mono font-bold text-sm">{globalError}</span>
+            <button onClick={() => setGlobalError(null)} className="ml-auto hover:text-white transition-colors"><X className="w-4 h-4"/></button>
+        </div>
+      )}
+
       <div className="flex flex-col gap-6 h-full">
         
         {/* Left Column: Stats & Quick Actions */}
@@ -210,6 +262,11 @@ const KeyManager: React.FC = () => {
                              <RefreshCw className="w-8 h-8 animate-spin text-rog-red" />
                              <span className="uppercase tracking-widest text-xs">Fetching Data...</span>
                          </div>
+                     ) : globalError ? (
+                        <div className="flex flex-col items-center gap-2 text-rog-red">
+                             <AlertTriangle className="w-12 h-12 mb-2" />
+                             <span className="uppercase tracking-widest text-xs">Connection Failed</span>
+                        </div>
                      ) : (
                         <>
                             <Shield className="w-12 h-12 mb-2" />

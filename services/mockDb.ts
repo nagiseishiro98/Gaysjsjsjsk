@@ -8,12 +8,13 @@ import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, User 
 // REPLACE THIS OBJECT WITH YOUR OWN FROM: Firebase Console > Project Settings
 // ==========================================================================
 const firebaseConfig = {
-  apiKey: "AIzaSyB-REPLACE_THIS_WITH_YOUR_API_KEY",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef"
+  apiKey: "AIzaSyBTKlUci5WyWwFw3FBriWWjC2AgmuH1TmY",
+  authDomain: "key-generator-93f89.firebaseapp.com",
+  projectId: "key-generator-93f89",
+  storageBucket: "key-generator-93f89.firebasestorage.app",
+  messagingSenderId: "53336276634",
+  appId: "1:53336276634:web:ea7de7068a8f1efb7ea923",
+  measurementId: "G-9SBEXVVZ53"
 };
 
 // Initialize Firebase
@@ -29,7 +30,8 @@ try {
   console.error("Firebase Initialization Error. Did you replace the config?", error);
 }
 
-const COLLECTION_NAME = 'licenses';
+// Updated to match the Firestore Rules 'match /keys/{docId}'
+const COLLECTION_NAME = 'keys';
 
 // --- AUTHENTICATION SERVICE ---
 
@@ -67,18 +69,14 @@ export const subscribeToAuth = (callback: (user: User | null) => void) => {
 // --- DATABASE SERVICE ---
 
 export const getKeys = async (): Promise<LicenseKey[]> => {
-  if (!db) return [];
-  try {
-    const q = query(collection(db, COLLECTION_NAME), orderBy('createdAt', 'desc'));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as LicenseKey));
-  } catch (error) {
-    console.error("Error fetching keys:", error);
-    return [];
-  }
+  if (!db) throw new Error("Database not connected");
+  // Removed try-catch to allow UI to handle 'insufficient permissions' errors
+  const q = query(collection(db, COLLECTION_NAME), orderBy('createdAt', 'desc'));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  } as LicenseKey));
 };
 
 export const generateUniqueKey = (prefix: string = 'KEY'): string => {
@@ -86,8 +84,8 @@ export const generateUniqueKey = (prefix: string = 'KEY'): string => {
   return `${prefix.toUpperCase()}-${randomPart.toUpperCase().match(/.{1,4}/g)?.join('-')}`;
 };
 
-export const createKey = async (params: GenerateKeyParams): Promise<LicenseKey | null> => {
-  if (!db) return null;
+export const createKey = async (params: GenerateKeyParams): Promise<LicenseKey> => {
+  if (!db) throw new Error("Database not connected");
   const now = Date.now();
   let expirationTime = 0;
 
@@ -118,56 +116,36 @@ export const createKey = async (params: GenerateKeyParams): Promise<LicenseKey |
     ip: null
   };
 
-  try {
-    const docRef = await addDoc(collection(db, COLLECTION_NAME), newKeyData);
-    return { id: docRef.id, ...newKeyData } as LicenseKey;
-  } catch (error) {
-    console.error("Error creating key:", error);
-    return null;
-  }
+  // Removed try-catch
+  const docRef = await addDoc(collection(db, COLLECTION_NAME), newKeyData);
+  return { id: docRef.id, ...newKeyData } as LicenseKey;
 };
 
 export const toggleKeyStatus = async (id: string, currentStatus: KeyStatus): Promise<void> => {
-  if (!db) return;
+  if (!db) throw new Error("Database not connected");
   const keyRef = doc(db, COLLECTION_NAME, id);
   
   let newStatus = currentStatus;
   if (currentStatus === KeyStatus.PAUSED) newStatus = KeyStatus.ACTIVE;
   else if (currentStatus === KeyStatus.ACTIVE) newStatus = KeyStatus.PAUSED;
 
-  try {
-    await updateDoc(keyRef, { status: newStatus });
-  } catch (error) {
-    console.error("Error updating status:", error);
-  }
+  await updateDoc(keyRef, { status: newStatus });
 };
 
 // Hard Delete (Permanent)
 export const deleteKey = async (id: string): Promise<void> => {
-  if (!db) return;
-  try {
-    await deleteDoc(doc(db, COLLECTION_NAME, id));
-  } catch (error) {
-    console.error("Error deleting key:", error);
-  }
+  if (!db) throw new Error("Database not connected");
+  await deleteDoc(doc(db, COLLECTION_NAME, id));
 };
 
 export const resetHwid = async (id: string): Promise<void> => {
-  if (!db) return;
+  if (!db) throw new Error("Database not connected");
   const keyRef = doc(db, COLLECTION_NAME, id);
-  try {
-    await updateDoc(keyRef, { boundDeviceId: null });
-  } catch (error) {
-    console.error("Error resetting HWID:", error);
-  }
+  await updateDoc(keyRef, { boundDeviceId: null });
 };
 
 export const banKey = async (id: string): Promise<void> => {
-    if (!db) return;
+    if (!db) throw new Error("Database not connected");
     const keyRef = doc(db, COLLECTION_NAME, id);
-    try {
-        await updateDoc(keyRef, { status: KeyStatus.BANNED });
-    } catch (error) {
-        console.error("Error banning key:", error);
-    }
+    await updateDoc(keyRef, { status: KeyStatus.BANNED });
 };
