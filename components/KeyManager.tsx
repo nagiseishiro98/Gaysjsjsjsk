@@ -81,11 +81,9 @@ const KeyManager: React.FC = () => {
   return (
     <div className="flex flex-col h-full w-full gap-6 text-rog-text animate-slide-up pb-20 md:pb-0">
       
-      {/* Removed lg:flex-row to disable landscape side-by-side layout */}
       <div className="flex flex-col gap-6 h-full">
         
         {/* Left Column: Stats & Quick Actions */}
-        {/* Removed lg:w-1/3 to allow full width in vertical stack */}
         <div className="w-full flex flex-col gap-6 shrink-0">
           
           {/* Server Load Widget */}
@@ -144,7 +142,7 @@ const KeyManager: React.FC = () => {
 
         </div>
 
-        {/* Right Column: Active Keys List */}
+        {/* Active Keys List - Vertical Layout Only */}
         <div className="flex-1 flex flex-col bg-rog-panel border border-rog-border relative clip-angle tilt-panel min-h-[400px]">
            {/* Header Actions */}
            <div className="p-4 border-b border-rog-border flex flex-col md:flex-row gap-4 justify-between items-start md:items-center bg-black/20">
@@ -174,18 +172,8 @@ const KeyManager: React.FC = () => {
               </div>
            </div>
 
-           {/* Desktop List Header */}
-           <div className="hidden md:grid grid-cols-12 gap-2 px-6 py-3 border-b border-rog-border bg-black/40 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-             <div className="col-span-4 flex items-center gap-2"><Key className="w-3 h-3 text-rog-red" /> Key_ID</div>
-             {/* Removed Timer Icon here */}
-             <div className="col-span-2 flex items-center gap-2">Time_Remaining</div>
-             <div className="col-span-2 text-center flex items-center justify-center gap-2"><Activity className="w-3 h-3 text-rog-red" /> State</div>
-             <div className="col-span-3 flex items-center gap-2"><Monitor className="w-3 h-3 text-rog-red" /> Hardware_ID</div>
-             <div className="col-span-1 text-right flex items-center justify-end gap-2"><Settings className="w-3 h-3 text-rog-red" /> Action</div>
-           </div>
-
-           {/* Scrollable List */}
-           <div className="flex-1 overflow-y-auto p-2 md:p-0 space-y-2 md:space-y-1 custom-scrollbar relative">
+           {/* Scrollable List - Card Layout Only */}
+           <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar relative">
               {filteredKeys.length === 0 ? (
                   <div className="absolute inset-0 flex flex-col items-center justify-center opacity-30">
                      <Shield className="w-12 h-12 mb-2" />
@@ -200,76 +188,76 @@ const KeyManager: React.FC = () => {
                       return (
                         <div 
                           key={k.id} 
-                          className="group bg-white/5 md:bg-transparent hover:bg-white/10 border border-transparent hover:border-rog-red md:border-none md:border-b md:border-gray-800/50 md:hover:border-transparent transition-all duration-300 text-xs p-4 md:px-6 md:py-3 rounded-sm md:rounded-none grid grid-cols-1 md:grid-cols-12 gap-2 items-center md:items-start relative"
+                          className="group bg-white/5 hover:bg-white/10 border border-transparent hover:border-rog-red transition-all duration-300 text-xs p-4 rounded-sm flex flex-col gap-3 relative"
                           style={{ animationDelay: `${i * 50}ms` }}
                         >
-                           {/* Mobile: Top Row (Key + Delete) */}
-                           <div className="col-span-4 flex flex-col md:block">
-                              <div className="flex justify-between items-start md:block">
+                           {/* Top Row: Key, Copy & Delete */}
+                           <div className="flex justify-between items-start">
+                              <div className="flex flex-col gap-1 max-w-[80%]">
                                 <div 
                                   onClick={() => handleCopy(k.key, k.id)}
-                                  className={`font-mono font-bold text-sm md:text-sm cursor-pointer flex items-center gap-2 truncate ${statusColor} hover:brightness-125 transition-all mb-1 md:mb-0 group/copy`}
+                                  className={`font-mono font-bold text-sm cursor-pointer flex items-center gap-2 truncate ${statusColor} hover:brightness-125 transition-all group/copy`}
                                 >
-                                  <Key className="w-3 h-3 md:hidden opacity-50" />
+                                  <Key className="w-3 h-3 opacity-50" />
                                   {k.key}
-                                  {copiedId === k.id ? (
-                                      <Check className="w-3 h-3 text-green-500" />
-                                  ) : (
-                                      <Copy className="w-3 h-3 opacity-0 group-hover/copy:opacity-100 transition-opacity text-gray-500" />
-                                  )}
+                                  <div className="opacity-50 group-hover/copy:opacity-100 group-active/copy:scale-95 transition-all">
+                                    {copiedId === k.id ? (
+                                        <Check className="w-3 h-3 text-green-500" />
+                                    ) : (
+                                        <Copy className="w-3 h-3 text-gray-400" />
+                                    )}
+                                  </div>
                                 </div>
-                                <button 
-                                  onClick={() => deleteKey(k.id) && refreshKeys()}
-                                  className="md:hidden text-gray-600 hover:text-rog-red p-1"
-                                >
-                                   <Trash2 className="w-4 h-4" />
-                                </button>
+                                <span className="text-[10px] text-gray-500 uppercase tracking-wider truncate block">{k.note || 'NO_REF'}</span>
                               </div>
-                              <span className="text-[10px] text-gray-500 uppercase tracking-wider truncate block">{k.note || 'NO_REF'}</span>
-                           </div>
-
-                           {/* Time - Removed Icon, Fixed Alignment */}
-                           <div className="col-span-2 font-mono flex items-center gap-2 md:mt-[2px]">
-                             {k.expiresAt ? (
-                                 <span className={`${isExpired ? 'text-rog-red font-bold' : 'text-gray-400'} tracking-wider text-xs`}>
-                                     {timeLeft}
-                                 </span>
-                             ) : (
-                                 <span className="text-rog-accent tracking-widest text-[10px] font-bold opacity-60">LIFETIME</span>
-                             )}
-                           </div>
-
-                           {/* State */}
-                           <div className="col-span-2 flex md:justify-center justify-start md:mt-[1px]">
+                              
                               <button 
-                                onClick={() => toggleKeyStatus(k.id) && refreshKeys()}
-                                className={`px-2 py-0.5 border ${isExpired ? 'border-orange-900 bg-orange-900/20 text-orange-500' : k.status === KeyStatus.ACTIVE ? 'border-green-900 bg-green-900/20 text-green-500' : 'border-yellow-900 bg-yellow-900/20 text-yellow-500'} text-[10px] font-bold uppercase rounded-sm flex items-center gap-1 hover:scale-105 transition-transform`}
+                                onClick={() => deleteKey(k.id) && refreshKeys()}
+                                className="text-gray-600 hover:text-rog-red p-1 rounded hover:bg-rog-red/10 transition-colors"
+                                title="Delete Key"
                               >
-                                <div className={`w-1 h-1 rounded-full ${isExpired ? 'bg-orange-500' : k.status === KeyStatus.ACTIVE ? 'bg-green-500' : 'bg-yellow-500'} animate-pulse`}></div>
-                                {isExpired ? 'EXP' : k.status}
+                                 <Trash2 className="w-4 h-4" />
                               </button>
                            </div>
 
-                           {/* HWID */}
-                           <div className="col-span-3 font-mono text-[10px] text-gray-500 truncate flex items-center gap-2 bg-black/20 md:bg-transparent p-1 md:p-0 rounded md:rounded-none mt-1 md:mt-[3px]">
+                           {/* Middle Row: Status & Time */}
+                           <div className="flex items-center justify-between border-t border-white/5 pt-2 mt-1">
+                               <div className="flex items-center gap-2">
+                                  <button 
+                                    onClick={() => toggleKeyStatus(k.id) && refreshKeys()}
+                                    className={`px-2 py-0.5 border ${isExpired ? 'border-orange-900 bg-orange-900/20 text-orange-500' : k.status === KeyStatus.ACTIVE ? 'border-green-900 bg-green-900/20 text-green-500' : 'border-yellow-900 bg-yellow-900/20 text-yellow-500'} text-[10px] font-bold uppercase rounded-sm flex items-center gap-1 hover:scale-105 transition-transform`}
+                                  >
+                                    <div className={`w-1 h-1 rounded-full ${isExpired ? 'bg-orange-500' : k.status === KeyStatus.ACTIVE ? 'bg-green-500' : 'bg-yellow-500'} animate-pulse`}></div>
+                                    {isExpired ? 'EXP' : k.status}
+                                  </button>
+                                  
+                                  <div className="w-px h-3 bg-white/10 mx-1"></div>
+
+                                  <div className="font-mono flex items-center gap-2">
+                                    {k.expiresAt ? (
+                                        <span className={`${isExpired ? 'text-rog-red font-bold' : 'text-gray-400'} tracking-wider text-[10px]`}>
+                                            {timeLeft}
+                                        </span>
+                                    ) : (
+                                        <span className="text-rog-accent tracking-widest text-[10px] font-bold opacity-60">LIFETIME</span>
+                                    )}
+                                  </div>
+                               </div>
+                           </div>
+
+                           {/* Bottom Row: HWID */}
+                           <div className="font-mono text-[10px] text-gray-500 truncate flex items-center gap-2 bg-black/30 p-2 rounded-sm">
                               {k.boundDeviceId ? (
                                   <>
                                     <Smartphone className="w-3 h-3 shrink-0 text-gray-400" />
-                                    <span className="truncate opacity-50 hover:opacity-100 transition-opacity">{k.boundDeviceId}</span>
+                                    <span className="truncate opacity-50">{k.boundDeviceId}</span>
                                   </>
                               ) : (
-                                  <span className="italic opacity-30 pl-1">UNBOUND</span>
+                                  <>
+                                    <Monitor className="w-3 h-3 shrink-0 text-gray-600" />
+                                    <span className="italic opacity-30">NO_HARDWARE_BINDING</span>
+                                  </>
                               )}
-                           </div>
-
-                           {/* Desktop Actions */}
-                           <div className="hidden md:flex col-span-1 justify-end md:mt-[1px]">
-                              <button 
-                                onClick={() => deleteKey(k.id) && refreshKeys()}
-                                className="text-gray-600 hover:text-rog-red transition-colors"
-                              >
-                                 <X className="w-4 h-4" />
-                              </button>
                            </div>
                         </div>
                       );
@@ -279,7 +267,7 @@ const KeyManager: React.FC = () => {
         </div>
       </div>
 
-      {/* New Create Modal - Terminal Style */}
+      {/* Create Modal - Terminal Style */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in p-4">
           <div className="w-full max-w-lg bg-[#08080a] border border-rog-border relative overflow-hidden shadow-2xl">
