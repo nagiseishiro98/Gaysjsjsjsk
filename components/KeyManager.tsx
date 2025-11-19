@@ -5,13 +5,14 @@ import {
   Terminal, Hash, FileText,
   Key, Monitor, Copy, Settings, Timer
 } from 'lucide-react';
-import { getKeys, createKey, toggleKeyStatus, deleteKey } from '../services/mockDb';
+import { getKeys, createKey, toggleKeyStatus, deleteKey, resetHwid, banKey } from '../services/mockDb';
 import { LicenseKey, KeyStatus, DurationType } from '../types';
 
 const KeyManager: React.FC = () => {
   const [keys, setKeys] = useState<LicenseKey[]>([]);
   const [filter, setFilter] = useState('');
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Form State
   const [prefix, setPrefix] = useState('ROG');
@@ -23,8 +24,11 @@ const KeyManager: React.FC = () => {
   // Fake Stats
   const [serverLoad, setServerLoad] = useState(34);
 
-  const refreshKeys = useCallback(() => {
-    setKeys(getKeys());
+  const refreshKeys = useCallback(async () => {
+    setIsLoading(true);
+    const data = await getKeys();
+    setKeys(data);
+    setIsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -38,13 +42,38 @@ const KeyManager: React.FC = () => {
     return () => clearInterval(interval);
   }, [refreshKeys]);
 
-  const handleGenerate = (e?: React.FormEvent) => {
+  const handleGenerate = async (e?: React.FormEvent) => {
     if(e) e.preventDefault();
-    createKey({ prefix, durationValue, durationType, note });
-    refreshKeys();
+    setIsLoading(true);
+    await createKey({ prefix, durationValue, durationType, note });
     setNote('');
     setCreateModalOpen(false);
+    await refreshKeys();
+    setIsLoading(false);
   };
+
+  const handleToggleStatus = async (id: string, currentStatus: KeyStatus) => {
+      // Optimistic update
+      const updatedKeys = keys.map(k => 
+          k.id === id ? { ...k, status: k.status === KeyStatus.ACTIVE ? KeyStatus.PAUSED : KeyStatus.ACTIVE } : k
+      );
+      setKeys(updatedKeys);
+      
+      await toggleKeyStatus(id, currentStatus);
+      await refreshKeys(); // Sync with DB
+  };
+
+  const handleDelete = async (id: string) => {
+      if(window.confirm("Permanently delete this key from Database?")) {
+          await deleteKey(id);
+          await refreshKeys();
+      }
+  };
+
+  const handleResetHwid = async (id: string) => {
+      await resetHwid(id);
+      await refreshKeys();
+  }
 
   const handleCopy = async (text: string, id: string) => {
     try {
@@ -93,22 +122,22 @@ const KeyManager: React.FC = () => {
              </div>
              <div className="flex justify-between items-start">
                 <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <Server className="w-4 h-4" /> Server_Load
+                  <Server className="w-4 h-4" /> Database_Link
                 </h3>
                 <div className="font-mono text-xs text-rog-red animate-pulse">
-                   LIVE
+                   CONNECTED
                 </div>
              </div>
              
              <div className="flex items-end gap-2 mb-2">
-               <span className="text-4xl font-black text-white">{serverLoad}%</span>
-               <span className="text-xs text-rog-red font-mono mb-1">OPTIMAL</span>
+               <span className="text-4xl font-black text-white">{serverLoad}ms</span>
+               <span className="text-xs text-rog-red font-mono mb-1">LATENCY</span>
              </div>
              
              <div className="w-full h-1 bg-gray-800 overflow-hidden">
                <div 
                   className="h-full bg-rog-red shadow-[0_0_10px_#ff003c] transition-all duration-1000"
-                  style={{ width: `${serverLoad}%` }}
+                  style={{ width: `${Math.random() * 100}%` }}
                ></div>
              </div>
           </div>
@@ -116,11 +145,11 @@ const KeyManager: React.FC = () => {
           {/* System Tip */}
           <div className="bg-rog-panel border border-rog-border p-4 clip-angle-top tilt-panel hidden sm:block">
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-              <AlertTriangle className="w-3 h-3 text-rog-red" /> SYSTEM_TIP
+              <AlertTriangle className="w-3 h-3 text-rog-red" /> FIRESTORE_DB
             </h3>
             <div className="border-l-2 border-rog-red pl-3 py-1">
               <p className="text-xs text-gray-400 leading-relaxed">
-                HARDWARE ID LOCKING ACTIVE. DEVICE BINDING IS PERMANENT UNLESS RESET BY ADMIN.
+                DATA IS NOW PERSISTED IN CLOUD DATABASE. CHANGES ARE INSTANT AND GLOBAL.
               </p>
             </div>
           </div>
@@ -166,7 +195,7 @@ const KeyManager: React.FC = () => {
                      className="w-full bg-rog-black border border-gray-800 py-2 pl-8 pr-3 text-xs text-white focus:border-rog-red outline-none transition-colors font-mono"
                    />
                  </div>
-                 <button onClick={refreshKeys} className="p-2 border border-gray-800 hover:bg-white/10 hover:text-white text-gray-500 transition-colors">
+                 <button onClick={refreshKeys} className={`p-2 border border-gray-800 hover:bg-white/10 hover:text-white text-gray-500 transition-colors ${isLoading ? 'animate-spin' : ''}`}>
                    <RefreshCw className="w-4 h-4" />
                  </button>
               </div>
@@ -176,8 +205,17 @@ const KeyManager: React.FC = () => {
            <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar relative">
               {filteredKeys.length === 0 ? (
                   <div className="absolute inset-0 flex flex-col items-center justify-center opacity-30">
-                     <Shield className="w-12 h-12 mb-2" />
-                     <span className="uppercase tracking-widest text-xs">No Data Found</span>
+                     {isLoading ? (
+                         <div className="flex flex-col items-center gap-2">
+                             <RefreshCw className="w-8 h-8 animate-spin text-rog-red" />
+                             <span className="uppercase tracking-widest text-xs">Fetching Data...</span>
+                         </div>
+                     ) : (
+                        <>
+                            <Shield className="w-12 h-12 mb-2" />
+                            <span className="uppercase tracking-widest text-xs">No Data In Cloud</span>
+                        </>
+                     )}
                   </div>
               ) : (
                   filteredKeys.map((k, i) => {
@@ -212,7 +250,7 @@ const KeyManager: React.FC = () => {
                               </div>
                               
                               <button 
-                                onClick={() => deleteKey(k.id) && refreshKeys()}
+                                onClick={() => handleDelete(k.id)}
                                 className="text-gray-600 hover:text-rog-red p-1 rounded hover:bg-rog-red/10 transition-colors"
                                 title="Delete Key"
                               >
@@ -224,7 +262,7 @@ const KeyManager: React.FC = () => {
                            <div className="flex items-center justify-between border-t border-white/5 pt-2 mt-1">
                                <div className="flex items-center gap-2">
                                   <button 
-                                    onClick={() => toggleKeyStatus(k.id) && refreshKeys()}
+                                    onClick={() => handleToggleStatus(k.id, k.status)}
                                     className={`px-2 py-0.5 border ${isExpired ? 'border-orange-900 bg-orange-900/20 text-orange-500' : k.status === KeyStatus.ACTIVE ? 'border-green-900 bg-green-900/20 text-green-500' : 'border-yellow-900 bg-yellow-900/20 text-yellow-500'} text-[10px] font-bold uppercase rounded-sm flex items-center gap-1 hover:scale-105 transition-transform`}
                                   >
                                     <div className={`w-1 h-1 rounded-full ${isExpired ? 'bg-orange-500' : k.status === KeyStatus.ACTIVE ? 'bg-green-500' : 'bg-yellow-500'} animate-pulse`}></div>
@@ -246,17 +284,24 @@ const KeyManager: React.FC = () => {
                            </div>
 
                            {/* Bottom Row: HWID */}
-                           <div className="font-mono text-[10px] text-gray-500 truncate flex items-center gap-2 bg-black/30 p-2 rounded-sm">
-                              {k.boundDeviceId ? (
-                                  <>
-                                    <Smartphone className="w-3 h-3 shrink-0 text-gray-400" />
-                                    <span className="truncate opacity-50">{k.boundDeviceId}</span>
-                                  </>
-                              ) : (
-                                  <>
-                                    <Monitor className="w-3 h-3 shrink-0 text-gray-600" />
-                                    <span className="italic opacity-30">NO_HARDWARE_BINDING</span>
-                                  </>
+                           <div className="font-mono text-[10px] text-gray-500 truncate flex items-center gap-2 bg-black/30 p-2 rounded-sm justify-between">
+                              <div className="flex items-center gap-2 truncate">
+                                {k.boundDeviceId ? (
+                                    <>
+                                        <Smartphone className="w-3 h-3 shrink-0 text-gray-400" />
+                                        <span className="truncate opacity-50">{k.boundDeviceId}</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Monitor className="w-3 h-3 shrink-0 text-gray-600" />
+                                        <span className="italic opacity-30">NO_HARDWARE_BINDING</span>
+                                    </>
+                                )}
+                              </div>
+                              {k.boundDeviceId && (
+                                  <button onClick={() => handleResetHwid(k.id)} className="text-rog-red hover:underline text-[9px]">
+                                      RESET
+                                  </button>
                               )}
                            </div>
                         </div>
@@ -287,7 +332,7 @@ const KeyManager: React.FC = () => {
                    <Terminal className="w-8 h-8 text-rog-red" />
                    <div>
                       <h3 className="text-xl font-bold text-white tracking-wider">PROTOCOL: GENERATE</h3>
-                      <p className="text-[10px] text-rog-red font-mono">SECURE_HASH_ALGORITHM_V2</p>
+                      <p className="text-[10px] text-rog-red font-mono">SYNC_TO_FIRESTORE_DB</p>
                    </div>
                 </div>
 
@@ -359,11 +404,12 @@ const KeyManager: React.FC = () => {
 
                 <button 
                    onClick={handleGenerate}
-                   className="w-full mt-8 bg-white text-black hover:bg-rog-red hover:text-white font-bold py-4 uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 group relative overflow-hidden"
+                   disabled={isLoading}
+                   className="w-full mt-8 bg-white text-black hover:bg-rog-red hover:text-white font-bold py-4 uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 group relative overflow-hidden disabled:opacity-50"
                 >
                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-                   <Zap className="w-4 h-4" />
-                   <span>Execute</span>
+                   {isLoading ? <RefreshCw className="w-4 h-4 animate-spin"/> : <Zap className="w-4 h-4" />}
+                   <span>{isLoading ? 'UPLOADING...' : 'Execute'}</span>
                 </button>
              </div>
              

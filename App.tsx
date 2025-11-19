@@ -3,45 +3,55 @@ import Login from './components/Login';
 import Sidebar from './components/Sidebar';
 import KeyManager from './components/KeyManager';
 import PythonIntegration from './components/PythonIntegration';
-import { Menu, X, Cpu, LayoutGrid, Code, LogOut, Clock } from 'lucide-react';
+import { Menu, X, Cpu, LayoutGrid, Code, LogOut, Clock, Loader2 } from 'lucide-react';
+import { subscribeToAuth, logoutUser } from './services/mockDb';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // New loading state for Auth check
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [mountAnim, setMountAnim] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
-    const session = localStorage.getItem('keymaster_auth');
-    if (session === 'true') {
-      setIsAuthenticated(true);
-    }
-    setMountAnim(true);
+    // Subscribe to Firebase Auth state
+    const unsubscribe = subscribeToAuth((user) => {
+      setIsAuthenticated(!!user);
+      setIsLoading(false);
+    });
 
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
 
-    return () => clearInterval(timer);
+    return () => {
+      unsubscribe();
+      clearInterval(timer);
+    };
   }, []);
 
-  const handleLogin = () => {
-    localStorage.setItem('keymaster_auth', 'true');
-    setIsAuthenticated(true);
+  const handleLogout = async () => {
+    await logoutUser();
+    // State update is handled by the subscribeToAuth listener
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('keymaster_auth');
-    setIsAuthenticated(false);
-  };
+  if (isLoading) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-[#050505] text-white">
+         <div className="flex flex-col items-center gap-4 animate-pulse">
+            <Cpu className="w-12 h-12 text-rog-red" />
+            <div className="font-mono text-sm tracking-widest text-gray-500">ESTABLISHING SECURE CONNECTION...</div>
+         </div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
-    return <Login onLogin={handleLogin} />;
+    return <Login onLogin={() => {}} />; // onLogin is now optional as the listener handles state
   }
 
   return (
-    <div className={`h-screen w-screen flex flex-col bg-[#050505] text-white overflow-hidden transition-opacity duration-1000 ${mountAnim ? 'opacity-100' : 'opacity-0'}`}>
+    <div className="h-screen w-screen flex flex-col bg-[#050505] text-white overflow-hidden animate-fade-in">
       
       {/* Clean Background: No lines, just deep darkness */}
       <div className="absolute top-0 left-0 w-full h-full bg-[#050505] z-0"></div>

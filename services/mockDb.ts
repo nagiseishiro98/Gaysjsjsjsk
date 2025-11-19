@@ -1,15 +1,84 @@
 import { LicenseKey, KeyStatus, GenerateKeyParams, DurationType } from '../types';
-import { v4 as uuidv4 } from 'uuid';
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, Timestamp } from 'firebase/firestore';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
 
-const STORAGE_KEY = 'keymaster_db_v2_ios';
-
-export const getKeys = (): LicenseKey[] => {
-  const data = localStorage.getItem(STORAGE_KEY);
-  return data ? JSON.parse(data) : [];
+// ==========================================================================
+// FIREBASE CONFIGURATION
+// REPLACE THIS OBJECT WITH YOUR OWN FROM: Firebase Console > Project Settings
+// ==========================================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyB-REPLACE_THIS_WITH_YOUR_API_KEY",
+  authDomain: "your-project.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef"
 };
 
-export const saveKeys = (keys: LicenseKey[]) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(keys));
+// Initialize Firebase
+// We use a try-catch to prevent the app from crashing if config is invalid during development
+let db: any;
+let auth: any;
+
+try {
+  const app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+  auth = getAuth(app);
+} catch (error) {
+  console.error("Firebase Initialization Error. Did you replace the config?", error);
+}
+
+const COLLECTION_NAME = 'licenses';
+
+// --- AUTHENTICATION SERVICE ---
+
+/**
+ * Logs in the user using Firebase Authentication.
+ * NOTE: You must create the user in Firebase Console > Authentication > Users first.
+ */
+export const loginUser = async (email: string, pass: string) => {
+  if (!auth) throw new Error("Firebase not initialized");
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+    return userCredential.user;
+  } catch (error: any) {
+    throw error;
+  }
+};
+
+export const logoutUser = async () => {
+  if (!auth) return;
+  await signOut(auth);
+};
+
+/**
+ * Subscribes to the Firebase Auth state.
+ * Use this in App.tsx to know if a user is logged in or out.
+ */
+export const subscribeToAuth = (callback: (user: User | null) => void) => {
+  if (!auth) {
+    callback(null);
+    return () => {};
+  }
+  return onAuthStateChanged(auth, callback);
+};
+
+// --- DATABASE SERVICE ---
+
+export const getKeys = async (): Promise<LicenseKey[]> => {
+  if (!db) return [];
+  try {
+    const q = query(collection(db, COLLECTION_NAME), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as LicenseKey));
+  } catch (error) {
+    console.error("Error fetching keys:", error);
+    return [];
+  }
 };
 
 export const generateUniqueKey = (prefix: string = 'KEY'): string => {
@@ -17,7 +86,8 @@ export const generateUniqueKey = (prefix: string = 'KEY'): string => {
   return `${prefix.toUpperCase()}-${randomPart.toUpperCase().match(/.{1,4}/g)?.join('-')}`;
 };
 
-export const createKey = (params: GenerateKeyParams): LicenseKey => {
+export const createKey = async (params: GenerateKeyParams): Promise<LicenseKey | null> => {
+  if (!db) return null;
   const now = Date.now();
   let expirationTime = 0;
 
@@ -36,8 +106,7 @@ export const createKey = (params: GenerateKeyParams): LicenseKey => {
       break;
   }
 
-  const newKey: LicenseKey = {
-    id: uuidv4(),
+  const newKeyData = {
     key: generateUniqueKey(params.prefix),
     note: params.note,
     createdAt: now,
@@ -49,80 +118,56 @@ export const createKey = (params: GenerateKeyParams): LicenseKey => {
     ip: null
   };
 
-  const currentKeys = getKeys();
-  saveKeys([newKey, ...currentKeys]);
-  return newKey;
+  try {
+    const docRef = await addDoc(collection(db, COLLECTION_NAME), newKeyData);
+    return { id: docRef.id, ...newKeyData } as LicenseKey;
+  } catch (error) {
+    console.error("Error creating key:", error);
+    return null;
+  }
 };
 
-export const toggleKeyStatus = (id: string): LicenseKey[] => {
-  const keys = getKeys();
-  const updatedKeys = keys.map(k => {
-    if (k.id === id) {
-      if (k.status === KeyStatus.PAUSED) return { ...k, status: KeyStatus.ACTIVE };
-      if (k.status === KeyStatus.ACTIVE) return { ...k, status: KeyStatus.PAUSED };
-    }
-    return k;
-  });
-  saveKeys(updatedKeys);
-  return updatedKeys;
+export const toggleKeyStatus = async (id: string, currentStatus: KeyStatus): Promise<void> => {
+  if (!db) return;
+  const keyRef = doc(db, COLLECTION_NAME, id);
+  
+  let newStatus = currentStatus;
+  if (currentStatus === KeyStatus.PAUSED) newStatus = KeyStatus.ACTIVE;
+  else if (currentStatus === KeyStatus.ACTIVE) newStatus = KeyStatus.PAUSED;
+
+  try {
+    await updateDoc(keyRef, { status: newStatus });
+  } catch (error) {
+    console.error("Error updating status:", error);
+  }
 };
 
 // Hard Delete (Permanent)
-export const deleteKey = (id: string): LicenseKey[] => {
-  const keys = getKeys();
-  const updatedKeys = keys.filter(k => k.id !== id);
-  saveKeys(updatedKeys);
-  return updatedKeys;
+export const deleteKey = async (id: string): Promise<void> => {
+  if (!db) return;
+  try {
+    await deleteDoc(doc(db, COLLECTION_NAME, id));
+  } catch (error) {
+    console.error("Error deleting key:", error);
+  }
 };
 
-// Soft Delete (Archive)
-export const archiveKey = (id: string): LicenseKey[] => {
-  const keys = getKeys();
-  const updatedKeys = keys.map(k => {
-    if (k.id === id) {
-      return { ...k, status: KeyStatus.ARCHIVED };
+export const resetHwid = async (id: string): Promise<void> => {
+  if (!db) return;
+  const keyRef = doc(db, COLLECTION_NAME, id);
+  try {
+    await updateDoc(keyRef, { boundDeviceId: null });
+  } catch (error) {
+    console.error("Error resetting HWID:", error);
+  }
+};
+
+export const banKey = async (id: string): Promise<void> => {
+    if (!db) return;
+    const keyRef = doc(db, COLLECTION_NAME, id);
+    try {
+        await updateDoc(keyRef, { status: KeyStatus.BANNED });
+    } catch (error) {
+        console.error("Error banning key:", error);
     }
-    return k;
-  });
-  saveKeys(updatedKeys);
-  return updatedKeys;
 };
-
-// Restore from Archive
-export const restoreKey = (id: string): LicenseKey[] => {
-  const keys = getKeys();
-  const updatedKeys = keys.map(k => {
-    if (k.id === id) {
-      // Restore to active, or expired if time has passed
-      const isExpired = k.expiresAt && Date.now() > k.expiresAt;
-      return { ...k, status: isExpired ? KeyStatus.EXPIRED : KeyStatus.ACTIVE };
-    }
-    return k;
-  });
-  saveKeys(updatedKeys);
-  return updatedKeys;
-};
-
-export const resetHwid = (id: string): LicenseKey[] => {
-  const keys = getKeys();
-  const updatedKeys = keys.map(k => {
-    if (k.id === id) {
-      return { ...k, boundDeviceId: null };
-    }
-    return k;
-  });
-  saveKeys(updatedKeys);
-  return updatedKeys;
-};
-
-export const banKey = (id: string): LicenseKey[] => {
-    const keys = getKeys();
-    const updatedKeys = keys.map(k => {
-      if (k.id === id) {
-        return { ...k, status: KeyStatus.BANNED };
-      }
-      return k;
-    });
-    saveKeys(updatedKeys);
-    return updatedKeys;
-}

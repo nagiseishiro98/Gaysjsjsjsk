@@ -1,29 +1,39 @@
 import React, { useState } from 'react';
-import { Lock, ArrowRight, Cpu, ShieldCheck, User } from 'lucide-react';
+import { Lock, ArrowRight, Cpu, ShieldCheck, User, AlertTriangle } from 'lucide-react';
+import { loginUser } from '../services/mockDb';
 
 interface LoginProps {
   onLogin: () => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     
-    setTimeout(() => {
-      if (username === 'admin' && password === 'admin') {
-        onLogin();
+    try {
+      await loginUser(email, password);
+      // onLogin is optional now because App.tsx detects the auth change
+      // but we call it if provided for legacy support or immediate feedback
+      if (onLogin) onLogin();
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-email') {
+        setError('INVALID CREDENTIALS');
+      } else if (err.message && err.message.includes("Firebase not initialized")) {
+        setError('DATABASE ERROR: CONFIG MISSING');
       } else {
-        setError('ACCESS DENIED');
-        setIsLoading(false);
+        setError('CONNECTION FAILED');
       }
-    }, 1000);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -45,7 +55,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     ROG<span className="text-rog-red">ADMIN</span>
                 </h1>
                 <div className="text-gray-500 text-[10px] md:text-xs font-mono tracking-[0.4em] uppercase">
-                    Secure Access Portal
+                    Secure Database Access
                 </div>
              </div>
 
@@ -56,12 +66,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                      <User className="w-4 h-4 text-gray-600 group-focus-within:text-rog-red transition-colors" />
                    </div>
                    <input 
-                     type="text" 
-                     value={username}
-                     onChange={(e) => setUsername(e.target.value)}
+                     type="email" 
+                     value={email}
+                     onChange={(e) => setEmail(e.target.value)}
                      className="w-full bg-[#151518] text-white py-3 pl-10 pr-4 border border-gray-800 focus:border-rog-red outline-none transition-all font-mono text-sm placeholder-gray-600 hover:border-gray-700"
-                     placeholder="OPERATOR ID"
-                     autoComplete="off"
+                     placeholder="ADMIN EMAIL"
+                     autoComplete="email"
+                     required
                    />
                  </div>
                </div>
@@ -76,23 +87,24 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                      value={password}
                      onChange={(e) => setPassword(e.target.value)}
                      className="w-full bg-[#151518] text-white py-3 pl-10 pr-4 border border-gray-800 focus:border-rog-red outline-none transition-all font-mono text-sm placeholder-gray-600 hover:border-gray-700"
-                     placeholder="ACCESS CODE"
+                     placeholder="DATABASE PASSWORD"
+                     required
                    />
                  </div>
                </div>
 
                {error && (
-                   <div className="text-xs text-rog-red text-center font-mono py-2 border-t border-b border-rog-red/20 bg-rog-red/5">
-                       [ ! ] {error}
+                   <div className="text-xs text-rog-red text-center font-mono py-2 border-t border-b border-rog-red/20 bg-rog-red/5 flex items-center justify-center gap-2">
+                       <AlertTriangle className="w-3 h-3" /> {error}
                    </div>
                )}
 
                <button
                    type="submit"
                    disabled={isLoading}
-                   className="w-full mt-6 bg-rog-red hover:bg-red-600 text-white font-bold py-3 uppercase tracking-widest transition-all flex items-center justify-center gap-2 group clip-angle-top active:scale-[0.98]"
+                   className="w-full mt-6 bg-rog-red hover:bg-red-600 text-white font-bold py-3 uppercase tracking-widest transition-all flex items-center justify-center gap-2 group clip-angle-top active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                >
-                   <span>{isLoading ? 'Verifying...' : 'Initialize System'}</span>
+                   <span>{isLoading ? 'Authenticating...' : 'Connect DB'}</span>
                    {!isLoading && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
                </button>
              </form>
@@ -101,7 +113,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
              <div className="mt-8 md:mt-10 flex justify-center items-center gap-2 opacity-30 hover:opacity-60 transition-opacity">
                  <ShieldCheck className="w-3 h-3 text-gray-400" />
                  <span className="text-[10px] text-gray-400 font-mono tracking-wider">
-                     ENCRYPTED CONNECTION // V.2.5
+                     FIREBASE ENCRYPTED // V.3.0
                  </span>
              </div>
          </div>
