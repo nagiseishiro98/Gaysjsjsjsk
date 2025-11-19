@@ -1,7 +1,7 @@
 import { LicenseKey, KeyStatus, GenerateKeyParams, DurationType } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
-const STORAGE_KEY = 'keymaster_db_v1';
+const STORAGE_KEY = 'keymaster_db_v2_ios';
 
 export const getKeys = (): LicenseKey[] => {
   const data = localStorage.getItem(STORAGE_KEY);
@@ -58,8 +58,8 @@ export const toggleKeyStatus = (id: string): LicenseKey[] => {
   const keys = getKeys();
   const updatedKeys = keys.map(k => {
     if (k.id === id) {
-      const newStatus = k.status === KeyStatus.ACTIVE ? KeyStatus.PAUSED : KeyStatus.ACTIVE;
-      return { ...k, status: newStatus };
+      if (k.status === KeyStatus.PAUSED) return { ...k, status: KeyStatus.ACTIVE };
+      if (k.status === KeyStatus.ACTIVE) return { ...k, status: KeyStatus.PAUSED };
     }
     return k;
   });
@@ -67,9 +67,38 @@ export const toggleKeyStatus = (id: string): LicenseKey[] => {
   return updatedKeys;
 };
 
+// Hard Delete (Permanent)
 export const deleteKey = (id: string): LicenseKey[] => {
   const keys = getKeys();
   const updatedKeys = keys.filter(k => k.id !== id);
+  saveKeys(updatedKeys);
+  return updatedKeys;
+};
+
+// Soft Delete (Archive)
+export const archiveKey = (id: string): LicenseKey[] => {
+  const keys = getKeys();
+  const updatedKeys = keys.map(k => {
+    if (k.id === id) {
+      return { ...k, status: KeyStatus.ARCHIVED };
+    }
+    return k;
+  });
+  saveKeys(updatedKeys);
+  return updatedKeys;
+};
+
+// Restore from Archive
+export const restoreKey = (id: string): LicenseKey[] => {
+  const keys = getKeys();
+  const updatedKeys = keys.map(k => {
+    if (k.id === id) {
+      // Restore to active, or expired if time has passed
+      const isExpired = k.expiresAt && Date.now() > k.expiresAt;
+      return { ...k, status: isExpired ? KeyStatus.EXPIRED : KeyStatus.ACTIVE };
+    }
+    return k;
+  });
   saveKeys(updatedKeys);
   return updatedKeys;
 };

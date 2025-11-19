@@ -1,22 +1,25 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  Plus, Copy, Trash2, Play, Pause, ShieldAlert, 
-  CheckCircle, AlertTriangle, Activity, Search
+  Plus, Search, Trash2, Lock, Unlock, Smartphone, Check,
+  RefreshCw, X, RotateCcw, Archive, Shield, Activity, Server, Zap, AlertTriangle
 } from 'lucide-react';
-import { getKeys, createKey, toggleKeyStatus, deleteKey, resetHwid, banKey } from '../services/mockDb';
+import { getKeys, createKey, toggleKeyStatus, deleteKey, resetHwid, archiveKey, restoreKey } from '../services/mockDb';
 import { LicenseKey, KeyStatus, DurationType } from '../types';
 
 const KeyManager: React.FC = () => {
   const [keys, setKeys] = useState<LicenseKey[]>([]);
   const [filter, setFilter] = useState('');
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   
   // Form State
-  const [prefix, setPrefix] = useState('YW-TEST-KEY');
-  const [durationValue, setDurationValue] = useState(1);
+  const [prefix, setPrefix] = useState('ROG');
+  const [durationValue, setDurationValue] = useState(30);
   const [durationType, setDurationType] = useState<DurationType>(DurationType.DAYS);
   const [note, setNote] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Fake Stats
+  const [serverLoad, setServerLoad] = useState(34);
 
   const refreshKeys = useCallback(() => {
     setKeys(getKeys());
@@ -24,6 +27,13 @@ const KeyManager: React.FC = () => {
 
   useEffect(() => {
     refreshKeys();
+    const interval = setInterval(() => {
+      setServerLoad(prev => {
+        const change = Math.floor(Math.random() * 10) - 5;
+        return Math.min(Math.max(prev + change, 20), 95);
+      });
+    }, 2000);
+    return () => clearInterval(interval);
   }, [refreshKeys]);
 
   const handleGenerate = (e?: React.FormEvent) => {
@@ -31,13 +41,8 @@ const KeyManager: React.FC = () => {
     createKey({ prefix, durationValue, durationType, note });
     refreshKeys();
     setNote('');
-    setIsFormOpen(false);
+    setCreateModalOpen(false);
   };
-
-  const quickGenerate = (val: number, type: DurationType, label: string) => {
-     createKey({ prefix: 'YW', durationValue: val, durationType: type, note: `Quick ${label}` });
-     refreshKeys();
-  }
 
   const handleCopy = async (text: string, id: string) => {
     try {
@@ -45,251 +50,259 @@ const KeyManager: React.FC = () => {
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
     } catch (err) {
-      // Fallback for non-secure contexts
-      const textArea = document.createElement("textarea");
-      textArea.value = text;
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      try {
-        document.execCommand('copy');
         setCopiedId(id);
         setTimeout(() => setCopiedId(null), 2000);
-      } catch (err) {
-        console.error('Unable to copy', err);
-      }
-      document.body.removeChild(textArea);
-    }
-  };
-
-  const handleToggle = (id: string) => {
-    toggleKeyStatus(id);
-    refreshKeys();
-  };
-
-  const handleDelete = (id: string) => {
-    if (window.confirm('CONFIRM DELETION? This action cannot be undone.')) {
-      deleteKey(id);
-      refreshKeys();
-    }
-  };
-
-  const handleBan = (id: string) => {
-      if(window.confirm('CONFIRM BAN? Key will be permanently blacklisted.')) {
-          banKey(id);
-          refreshKeys();
-      }
-  }
-
-  const handleResetHwid = (id: string) => {
-    if (window.confirm('RESET HARDWARE BINDING?')) {
-      resetHwid(id);
-      refreshKeys();
     }
   };
 
   const filteredKeys = keys.filter(k => 
-    k.key.toLowerCase().includes(filter.toLowerCase()) || 
-    k.note.toLowerCase().includes(filter.toLowerCase())
+    k.key.toLowerCase().includes(filter.toLowerCase()) || k.note.toLowerCase().includes(filter.toLowerCase())
   );
 
-  const formatDate = (timestamp: number | null) => {
-    if (!timestamp) return 'LIFETIME';
-    const date = new Date(timestamp);
-    return date.toLocaleString('en-GB', { 
-      day: '2-digit', month: '2-digit', year: 'numeric', 
-      hour: '2-digit', minute: '2-digit', hour12: false 
-    });
-  };
-
   return (
-    <div className="space-y-8 font-sans">
-      {/* Top Controls */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-         {/* Quick Presets */}
-         <button onClick={() => quickGenerate(1, DurationType.DAYS, '1 Day')} className="bg-gray-900/50 border border-gray-800 hover:border-gray-600 p-4 text-center group transition-all">
-            <span className="text-sm text-gray-500 font-bold tracking-widest group-hover:text-white">1 DAY</span>
-         </button>
-         <button onClick={() => quickGenerate(7, DurationType.DAYS, '1 Week')} className="bg-gray-900/50 border border-gray-800 hover:border-gray-600 p-4 text-center group transition-all">
-            <span className="text-sm text-gray-500 font-bold tracking-widest group-hover:text-white">1 WEEK</span>
-         </button>
-         <button onClick={() => quickGenerate(30, DurationType.DAYS, '1 Month')} className="bg-gray-900/50 border border-gray-800 hover:border-gray-600 p-4 text-center group transition-all">
-            <span className="text-sm text-gray-500 font-bold tracking-widest group-hover:text-white">1 MONTH</span>
-         </button>
-         <button onClick={() => quickGenerate(1, DurationType.YEARS, '1 Year')} className="bg-gray-900/50 border border-gray-800 hover:border-gray-600 p-4 text-center group transition-all">
-            <span className="text-sm text-gray-500 font-bold tracking-widest group-hover:text-white">1 YEAR</span>
-         </button>
-      </div>
-
-      {/* Initiate Button */}
-      <button 
-        onClick={() => setIsFormOpen(!isFormOpen)}
-        className="w-full bg-rog-red hover:bg-red-600 text-white font-bold text-xl py-6 tracking-widest uppercase shadow-[0_0_20px_rgba(255,0,60,0.3)] transition-all clip-path-button relative overflow-hidden group"
-      >
-        <span className="relative z-10 flex items-center justify-center gap-3">
-          <Plus className="w-6 h-6" /> {isFormOpen ? 'CANCEL_SEQUENCE' : 'INITIATE_GENERATION'}
-        </span>
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-      </button>
-
-      {/* Generator Form Panel */}
-      {isFormOpen && (
-        <div className="bg-gray-900/80 border border-rog-red p-6 animate-in fade-in slide-in-from-top-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-             <div>
-               <label className="block text-[10px] text-rog-red font-bold uppercase tracking-widest mb-2">KEY PREFIX</label>
-               <input value={prefix} onChange={e => setPrefix(e.target.value)} className="w-full bg-black border border-gray-700 p-3 text-white font-mono focus:border-rog-red outline-none" />
+    <div className="flex flex-col h-full w-full gap-6 text-rog-text scene-3d animate-slide-up pb-20 md:pb-0">
+      
+      <div className="flex flex-col lg:flex-row gap-6 h-full">
+        
+        {/* Left Column: Stats & Quick Actions */}
+        <div className="lg:w-1/3 flex flex-col gap-6">
+          
+          {/* Server Load Widget */}
+          <div className="bg-rog-panel border border-rog-border p-6 clip-angle tilt-panel relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-2 opacity-20">
+               <Activity className="w-16 h-16 text-rog-red" />
              </div>
-             <div>
-               <label className="block text-[10px] text-rog-red font-bold uppercase tracking-widest mb-2">DURATION VALUE</label>
-               <input type="number" value={durationValue} onChange={e => setDurationValue(parseInt(e.target.value))} className="w-full bg-black border border-gray-700 p-3 text-white font-mono focus:border-rog-red outline-none" />
+             <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+               <Server className="w-4 h-4" /> Server_Load
+             </h3>
+             
+             <div className="flex items-end gap-2 mb-2">
+               <span className="text-4xl font-black text-white">{serverLoad}%</span>
+               <span className="text-xs text-rog-red font-mono mb-1 animate-pulse">OPTIMAL</span>
              </div>
-             <div>
-               <label className="block text-[10px] text-rog-red font-bold uppercase tracking-widest mb-2">DURATION TYPE</label>
-               <select value={durationType} onChange={e => setDurationType(e.target.value as DurationType)} className="w-full bg-black border border-gray-700 p-3 text-white font-mono focus:border-rog-red outline-none">
-                 <option value={DurationType.MINUTES}>MINUTES</option>
-                 <option value={DurationType.HOURS}>HOURS</option>
-                 <option value={DurationType.DAYS}>DAYS</option>
-                 <option value={DurationType.YEARS}>YEARS</option>
-               </select>
+             
+             <div className="w-full h-1 bg-gray-800 overflow-hidden">
+               <div 
+                  className="h-full bg-rog-red shadow-[0_0_10px_#ff003c] transition-all duration-1000"
+                  style={{ width: `${serverLoad}%` }}
+               ></div>
              </div>
-             <div>
-               <label className="block text-[10px] text-rog-red font-bold uppercase tracking-widest mb-2">NOTE</label>
-               <input value={note} onChange={e => setNote(e.target.value)} placeholder="CLIENT_REF" className="w-full bg-black border border-gray-700 p-3 text-white font-mono focus:border-rog-red outline-none" />
+             
+             <div className="mt-6 pt-4 border-t border-dashed border-gray-800">
+               <div className="flex justify-between items-center text-xs font-mono">
+                 <span className="text-gray-500 flex items-center gap-1"><Shield className="w-3 h-3" /> FIREWALL</span>
+                 <span className="text-rog-red">ACTIVE</span>
+               </div>
              </div>
           </div>
-          <button onClick={handleGenerate} className="w-full bg-white text-black font-bold py-3 hover:bg-gray-200 uppercase tracking-widest">CONFIRM GENERATION</button>
+
+          {/* System Tip */}
+          <div className="bg-rog-panel border border-rog-border p-6 clip-angle-top tilt-panel">
+            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-rog-red" /> SYSTEM_TIP
+            </h3>
+            <div className="border-l-2 border-rog-red pl-4 py-1">
+              <p className="text-xs text-gray-400 leading-relaxed">
+                HARDWARE ID LOCKING IS ACTIVE. REGENERATION REQUIRED FOR DEVICE RESET. ENSURE CLIENT CONNECTIVITY.
+              </p>
+            </div>
+          </div>
+
+          {/* Initiate Action */}
+          <button 
+            onClick={() => setCreateModalOpen(true)}
+            className="group relative bg-rog-red hover:bg-red-600 transition-all h-32 w-full clip-angle flex items-center justify-center overflow-hidden tilt-panel"
+          >
+             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 mix-blend-overlay"></div>
+             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+             
+             <div className="relative z-10 flex flex-col items-center gap-2">
+               <Plus className="w-8 h-8 text-white group-hover:scale-125 transition-transform duration-300" />
+               <span className="text-2xl font-black italic tracking-widest text-white group-hover:text-glow transition-all">INITIATE</span>
+               <span className="text-[10px] bg-black/30 px-2 py-0.5 rounded text-white/70 font-mono tracking-[0.2em]">NEW_KEY_GEN</span>
+             </div>
+          </button>
+
+        </div>
+
+        {/* Right Column: Active Keys List */}
+        <div className="lg:w-2/3 flex flex-col bg-rog-panel border border-rog-border relative clip-angle tilt-panel">
+           {/* Header Actions */}
+           <div className="p-4 border-b border-rog-border flex flex-wrap gap-4 justify-between items-center bg-black/20">
+              <div className="flex items-center gap-2">
+                 <div className="w-1 h-6 bg-rog-red"></div>
+                 <h2 className="text-xl font-bold uppercase tracking-wider text-white">Active_Keys</h2>
+                 <span className="bg-rog-red/20 text-rog-red text-xs px-2 py-1 rounded border border-rog-red/30 font-mono">
+                    COUNT: {filteredKeys.length}
+                 </span>
+              </div>
+
+              <div className="flex items-center gap-2 flex-1 md:flex-none">
+                 <div className="relative group flex-1">
+                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500 group-focus-within:text-rog-red" />
+                   <input 
+                     value={filter}
+                     onChange={(e) => setFilter(e.target.value)}
+                     placeholder="SEARCH ID..."
+                     className="w-full md:w-48 bg-rog-black border border-gray-800 py-1.5 pl-8 pr-3 text-xs text-white focus:border-rog-red outline-none transition-colors font-mono"
+                   />
+                 </div>
+                 <button onClick={refreshKeys} className="p-1.5 border border-gray-800 hover:bg-white/10 hover:text-white text-gray-500 transition-colors">
+                   <RefreshCw className="w-4 h-4" />
+                 </button>
+              </div>
+           </div>
+
+           {/* List Header */}
+           <div className="grid grid-cols-12 gap-2 px-6 py-3 border-b border-rog-border bg-black/40 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+             <div className="col-span-4">Key_ID</div>
+             <div className="col-span-2">Time</div>
+             <div className="col-span-2 text-center">State</div>
+             <div className="col-span-3">Hardware_ID</div>
+             <div className="col-span-1 text-right">Action</div>
+           </div>
+
+           {/* Scrollable List */}
+           <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar relative">
+              {filteredKeys.length === 0 ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center opacity-30">
+                     <Shield className="w-12 h-12 mb-2" />
+                     <span className="uppercase tracking-widest text-xs">No Data Found</span>
+                  </div>
+              ) : (
+                  filteredKeys.map((k, i) => {
+                      const isExpired = k.expiresAt && Date.now() > k.expiresAt;
+                      const statusColor = isExpired ? 'text-orange-500' : k.status === KeyStatus.ACTIVE ? 'text-rog-accent' : k.status === KeyStatus.PAUSED ? 'text-yellow-500' : 'text-gray-500';
+                      
+                      return (
+                        <div 
+                          key={k.id} 
+                          className="group grid grid-cols-12 gap-2 items-center px-4 py-3 bg-white/5 hover:bg-white/10 border-l-2 border-transparent hover:border-rog-red transition-all duration-300 text-xs"
+                          style={{ animationDelay: `${i * 50}ms` }}
+                        >
+                           {/* ID Column */}
+                           <div className="col-span-4 flex flex-col">
+                              <div 
+                                onClick={() => handleCopy(k.key, k.id)}
+                                className={`font-mono font-bold text-sm cursor-pointer flex items-center gap-2 truncate ${statusColor} hover:brightness-125 transition-all`}
+                              >
+                                {k.key}
+                                {copiedId === k.id && <Check className="w-3 h-3" />}
+                              </div>
+                              <span className="text-[10px] text-gray-600 uppercase tracking-wider truncate">{k.note || 'NO_CLIENT_REF'}</span>
+                           </div>
+
+                           {/* Time */}
+                           <div className="col-span-2 font-mono text-gray-400">
+                             {k.expiresAt ? (
+                                 <span className={isExpired ? 'text-red-500' : ''}>
+                                     {Math.ceil((k.expiresAt - Date.now()) / (1000 * 60 * 60 * 24))} DAYS
+                                 </span>
+                             ) : 'LIFE'}
+                           </div>
+
+                           {/* State */}
+                           <div className="col-span-2 flex justify-center">
+                              <button 
+                                onClick={() => toggleKeyStatus(k.id) && refreshKeys()}
+                                className={`px-2 py-0.5 border ${isExpired ? 'border-orange-900 bg-orange-900/20 text-orange-500' : k.status === KeyStatus.ACTIVE ? 'border-green-900 bg-green-900/20 text-green-500' : 'border-yellow-900 bg-yellow-900/20 text-yellow-500'} text-[10px] font-bold uppercase rounded-sm flex items-center gap-1 hover:scale-105 transition-transform`}
+                              >
+                                <div className={`w-1 h-1 rounded-full ${isExpired ? 'bg-orange-500' : k.status === KeyStatus.ACTIVE ? 'bg-green-500' : 'bg-yellow-500'} animate-pulse`}></div>
+                                {isExpired ? 'EXP' : k.status}
+                              </button>
+                           </div>
+
+                           {/* HWID */}
+                           <div className="col-span-3 font-mono text-[10px] text-gray-500 truncate flex items-center gap-2">
+                              {k.boundDeviceId ? (
+                                  <>
+                                    <Smartphone className="w-3 h-3" />
+                                    <span className="truncate opacity-50 hover:opacity-100 transition-opacity">{k.boundDeviceId}</span>
+                                  </>
+                              ) : (
+                                  <span className="italic opacity-30">AWAITING_BINDING</span>
+                              )}
+                           </div>
+
+                           {/* Actions */}
+                           <div className="col-span-1 flex justify-end">
+                              <button 
+                                onClick={() => deleteKey(k.id) && refreshKeys()}
+                                className="text-gray-600 hover:text-rog-red transition-colors"
+                              >
+                                 <X className="w-4 h-4" />
+                              </button>
+                           </div>
+                        </div>
+                      );
+                  })
+              )}
+           </div>
+        </div>
+      </div>
+
+      {/* Create Modal */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in p-4">
+          <div className="w-full max-w-lg bg-rog-panel border border-rog-red p-0 shadow-[0_0_50px_rgba(255,0,60,0.3)] clip-angle relative overflow-hidden">
+            {/* Decorative Top Bar */}
+            <div className="h-1 w-full bg-gradient-to-r from-rog-red via-white to-rog-red animate-pulse-glow"></div>
+            
+            <div className="p-8">
+                <button onClick={() => setCreateModalOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"><X className="w-6 h-6" /></button>
+                
+                <div className="flex items-center gap-3 mb-8">
+                    <div className="bg-rog-red p-2 rounded-sm rotate-3">
+                        <Zap className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                        <h3 className="text-2xl font-black italic text-white uppercase tracking-wider leading-none">Generate</h3>
+                        <span className="text-xs text-rog-red font-mono tracking-[0.3em]">NEW ACCESS KEY</span>
+                    </div>
+                </div>
+
+                <div className="space-y-6">
+                    <div className="group">
+                        <label className="text-[10px] text-rog-red font-bold uppercase tracking-widest mb-1 block ml-1">Prefix Identifier</label>
+                        <div className="relative">
+                            <input value={prefix} onChange={e => setPrefix(e.target.value)} className="w-full bg-black/50 border border-gray-700 p-4 text-white focus:border-rog-red outline-none font-mono clip-angle-top transition-all focus:shadow-[0_0_15px_rgba(255,0,60,0.2)]" />
+                            <div className="absolute right-0 bottom-0 h-2 w-2 border-b border-r border-rog-red"></div>
+                        </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                             <label className="text-[10px] text-rog-red font-bold uppercase tracking-widest mb-1 block ml-1">Duration</label>
+                             <input type="number" value={durationValue} onChange={e => setDurationValue(parseInt(e.target.value))} className="w-full bg-black/50 border border-gray-700 p-4 text-white focus:border-rog-red outline-none font-mono text-center" />
+                        </div>
+                        <div>
+                             <label className="text-[10px] text-rog-red font-bold uppercase tracking-widest mb-1 block ml-1">Unit</label>
+                             <select value={durationType} onChange={e => setDurationType(e.target.value as DurationType)} className="w-full bg-black/50 border border-gray-700 p-4 text-white focus:border-rog-red outline-none appearance-none uppercase">
+                                <option value={DurationType.DAYS}>Days</option>
+                                <option value={DurationType.HOURS}>Hours</option>
+                                <option value={DurationType.MINUTES}>Minutes</option>
+                                <option value={DurationType.YEARS}>Years</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="text-[10px] text-rog-red font-bold uppercase tracking-widest mb-1 block ml-1">Client Reference</label>
+                        <input value={note} onChange={e => setNote(e.target.value)} className="w-full bg-black/50 border border-gray-700 p-4 text-white focus:border-rog-red outline-none font-mono text-sm" placeholder="OPTIONAL_NOTE" />
+                    </div>
+                </div>
+
+                <button 
+                    onClick={handleGenerate} 
+                    className="w-full mt-8 bg-white text-black hover:bg-rog-red hover:text-white font-black italic text-xl py-4 uppercase tracking-widest transition-all clip-angle hover:shadow-[0_0_30px_rgba(255,0,60,0.5)] flex items-center justify-center gap-2 group"
+                >
+                    <span>Confirm Generation</span>
+                    <Plus className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
+                </button>
+            </div>
+          </div>
         </div>
       )}
-
-      {/* System Tip */}
-      <div className="border border-rog-red/50 bg-rog-red/5 p-6 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-1 h-full bg-rog-red"></div>
-        <h3 className="text-white font-bold tracking-widest flex items-center gap-2 mb-2">
-          <Activity className="w-4 h-4 text-rog-red" /> SYSTEM_TIP
-        </h3>
-        <div className="text-gray-400 text-sm font-mono leading-relaxed">
-          <span className="text-rog-red">|</span> HARDWARE ID LOCKING IS ACTIVE.<br/>
-          <span className="text-rog-red">|</span> REGENERATION REQUIRED FOR DEVICE RESET. ENSURE CLIENT PY SCRIPT IS V2.0+.
-        </div>
-      </div>
-
-      {/* Active Keys Table Container */}
-      <div>
-        <div className="flex items-center justify-between mb-4 border-l-4 border-rog-red pl-4">
-          <h2 className="text-xl font-bold text-white tracking-widest uppercase">ACTIVE_KEYS</h2>
-          <div className="flex items-center gap-4">
-             <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <input 
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  placeholder="SEARCH_DB..."
-                  className="bg-black border border-gray-800 py-2 pl-10 pr-4 text-xs text-white font-mono focus:border-rog-red outline-none w-48"
-                />
-             </div>
-             <div className="bg-rog-red/10 border border-rog-red/30 px-3 py-1">
-               <span className="text-xs text-rog-red font-bold">COUNT: {keys.length}</span>
-             </div>
-          </div>
-        </div>
-
-        <div className="bg-black border border-gray-900 overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-900/50 border-b border-gray-800">
-                <th className="p-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest"># KEY_ID</th>
-                <th className="p-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">TIME</th>
-                <th className="p-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">STATE</th>
-                <th className="p-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">HWID_BINDING</th>
-                <th className="p-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">EXPIRY</th>
-                <th className="p-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest text-right">CONTROLS</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-900">
-              {filteredKeys.length === 0 && (
-                 <tr><td colSpan={6} className="p-8 text-center text-gray-600 font-mono">NO_DATA_FOUND</td></tr>
-              )}
-              {filteredKeys.map((k) => {
-                const isExpired = k.expiresAt && Date.now() > k.expiresAt;
-                const isBanned = k.status === KeyStatus.BANNED;
-                
-                return (
-                  <tr key={k.id} className="hover:bg-white/5 transition-colors group">
-                    <td className="p-4">
-                      <div className="font-mono text-rog-red font-bold text-sm break-all max-w-[200px]">
-                        {k.key}
-                      </div>
-                      <div className="text-[10px] text-gray-600 uppercase mt-1">{k.note || 'NO_REF'}</div>
-                    </td>
-                    <td className="p-4">
-                       <div className="border border-gray-800 p-2 inline-block min-w-[60px] text-center">
-                         <span className="text-xs text-gray-300 font-mono">
-                           {k.expiresAt ? 
-                             Math.ceil((k.expiresAt - k.createdAt) / (1000 * 60 * 60 * 24)) + ' D' 
-                             : 'INF'
-                           }
-                         </span>
-                       </div>
-                    </td>
-                    <td className="p-4">
-                       <div className={`inline-flex items-center gap-2 px-3 py-1 border ${
-                         isBanned ? 'border-red-900 bg-red-900/20' :
-                         isExpired ? 'border-gray-700 bg-gray-800' :
-                         k.status === KeyStatus.ACTIVE ? 'border-emerald-900 bg-emerald-900/20' : 'border-yellow-900 bg-yellow-900/20'
-                       }`}>
-                         <div className={`w-2 h-2 rounded-sm ${
-                           isBanned ? 'bg-red-600' :
-                           isExpired ? 'bg-gray-500' :
-                           k.status === KeyStatus.ACTIVE ? 'bg-emerald-500 shadow-[0_0_5px_#10b981]' : 'bg-yellow-500'
-                         }`}></div>
-                         <span className={`text-[10px] font-bold tracking-widest ${
-                           isBanned ? 'text-red-500' :
-                           isExpired ? 'text-gray-500' :
-                           k.status === KeyStatus.ACTIVE ? 'text-emerald-500' : 'text-yellow-500'
-                         }`}>
-                           {isBanned ? 'BANNED' : isExpired ? 'EXPIRED' : k.status}
-                         </span>
-                       </div>
-                    </td>
-                    <td className="p-4">
-                      {k.boundDeviceId ? (
-                         <div className="font-mono text-xs text-gray-400 flex flex-col gap-1">
-                           <span className="truncate max-w-[120px]" title={k.boundDeviceId}>{k.boundDeviceId}</span>
-                           <button onClick={() => handleResetHwid(k.id)} className="text-[10px] text-rog-red hover:text-white hover:underline text-left uppercase">
-                             [RESET_BINDING]
-                           </button>
-                         </div>
-                       ) : (
-                         <span className="text-xs text-gray-600 italic tracking-wider">AWAITING_BINDING</span>
-                       )}
-                    </td>
-                    <td className="p-4">
-                      <span className="font-mono text-xs text-gray-400">{formatDate(k.expiresAt)}</span>
-                    </td>
-                    <td className="p-4 text-right">
-                       <div className="flex items-center justify-end gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => handleCopy(k.key, k.id)} className="p-2 hover:bg-gray-800 text-gray-400 hover:text-white transition-colors" title="COPY">
-                             {copiedId === k.id ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                          </button>
-                          <button onClick={() => handleToggle(k.id)} disabled={isExpired || isBanned} className="p-2 hover:bg-gray-800 text-gray-400 hover:text-white transition-colors disabled:opacity-30">
-                             {k.status === KeyStatus.ACTIVE ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                          </button>
-                          <button onClick={() => handleBan(k.id)} className="p-2 hover:bg-red-900/30 text-gray-400 hover:text-rog-red transition-colors">
-                             <ShieldAlert className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleDelete(k.id)} className="p-2 hover:bg-red-900/30 text-gray-400 hover:text-rog-red transition-colors">
-                             <Trash2 className="w-4 h-4" />
-                          </button>
-                       </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   );
 };

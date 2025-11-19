@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, User, Cpu } from 'lucide-react';
+import { Disc, Lock, ArrowRight } from 'lucide-react';
 
 interface LoginProps {
   onLogin: () => void;
@@ -9,86 +9,92 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (username === 'admin' && password === 'admin') {
-      onLogin();
-    } else {
-      setError('ACCESS DENIED (Try admin/admin)');
-    }
+    setIsLoading(true);
+    setError('');
+    
+    setTimeout(() => {
+      if (username === 'admin' && password === 'admin') {
+        onLogin();
+      } else {
+        setError('ACCESS DENIED // INVALID CREDENTIALS');
+        setIsLoading(false);
+      }
+    }, 1000);
   };
 
   return (
-    <div className="min-h-screen bg-rog-dark flex items-center justify-center p-4 relative overflow-hidden font-sans">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-rog-red/5 via-transparent to-transparent opacity-20"></div>
+    <div className="min-h-screen w-full flex items-center justify-center bg-rog-black bg-hex-pattern relative overflow-hidden">
+      {/* Ambient Red Glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-rog-red/5 blur-[150px] rounded-full pointer-events-none"></div>
+
+      <div className="w-full max-w-md relative z-10 p-1">
+         {/* Decorative Cyber Borders */}
+         <div className="absolute -top-2 -left-2 w-16 h-16 border-l-4 border-t-4 border-rog-red rounded-tl-none"></div>
+         <div className="absolute -bottom-2 -right-2 w-16 h-16 border-r-4 border-b-4 border-rog-red rounded-br-none"></div>
+
+         <div className="bg-rog-dark/90 backdrop-blur-xl border border-rog-red/30 p-10 clip-rog relative shadow-[0_0_50px_-10px_rgba(255,0,60,0.2)]">
+             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-rog-red to-transparent animate-scan"></div>
+             
+             <div className="text-center mb-12">
+                <h1 className="text-5xl font-black italic text-white tracking-tighter mb-2 flex justify-center items-center gap-3">
+                    <Disc className="w-8 h-8 text-rog-red animate-spin-slow" />
+                    ROG
+                </h1>
+                <div className="text-rog-red uppercase tracking-[0.4em] text-xs font-bold">Security Access Protocol</div>
+             </div>
+
+             <form onSubmit={handleLogin} className="space-y-6 relative">
+               <div className="space-y-2">
+                 <label className="text-xs text-rog-red font-bold uppercase tracking-wider ml-1">Identity</label>
+                 <input 
+                   type="text" 
+                   value={username}
+                   onChange={(e) => setUsername(e.target.value)}
+                   className="w-full bg-black/50 border border-gray-800 text-white p-4 focus:border-rog-red focus:shadow-[0_0_15px_rgba(255,0,60,0.3)] outline-none transition-all font-mono clip-rog-inv"
+                   placeholder="USERNAME"
+                   autoComplete="off"
+                 />
+               </div>
+               
+               <div className="space-y-2">
+                 <label className="text-xs text-rog-red font-bold uppercase tracking-wider ml-1">Passcode</label>
+                 <input
+                   type="password"
+                   value={password}
+                   onChange={(e) => setPassword(e.target.value)}
+                   className="w-full bg-black/50 border border-gray-800 text-white p-4 focus:border-rog-red focus:shadow-[0_0_15px_rgba(255,0,60,0.3)] outline-none transition-all font-mono clip-rog-inv"
+                   placeholder="••••••••"
+                 />
+               </div>
+
+               {error && (
+                   <div className="text-xs text-rog-red text-center border border-rog-red/50 p-3 bg-rog-red/10 font-mono animate-pulse">
+                       [!] {error}
+                   </div>
+               )}
+
+               <button
+                   type="submit"
+                   disabled={isLoading}
+                   className="w-full mt-6 bg-rog-red text-white font-black italic text-xl py-5 uppercase tracking-widest hover:bg-red-600 hover:shadow-[0_0_20px_rgba(255,0,60,0.6)] transition-all active:scale-95 clip-rog relative overflow-hidden group disabled:grayscale"
+               >
+                   <span className="relative z-10 flex items-center justify-center gap-3">
+                       {isLoading ? 'Authenticating...' : 'Initialize'} 
+                       {!isLoading && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
+                   </span>
+                   {/* Button Glint */}
+                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:animate-[shimmer_0.5s_ease-in-out]"></div>
+               </button>
+             </form>
+         </div>
+      </div>
       
-      <div className="max-w-md w-full bg-rog-panel border border-rog-border p-8 relative z-10 shadow-2xl">
-        {/* Decorative corner markers */}
-        <div className="absolute top-0 left-0 w-2 h-2 bg-rog-red"></div>
-        <div className="absolute top-0 right-0 w-2 h-2 bg-rog-red"></div>
-        <div className="absolute bottom-0 left-0 w-2 h-2 bg-rog-red"></div>
-        <div className="absolute bottom-0 right-0 w-2 h-2 bg-rog-red"></div>
-
-        <div className="text-center mb-10">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-rog-red/10 border border-rog-red/50 flex items-center justify-center">
-               <Cpu className="w-8 h-8 text-rog-red" />
-            </div>
-          </div>
-          <h2 className="text-3xl font-bold text-white tracking-widest">ROG<span className="text-rog-red">ADMIN</span></h2>
-          <div className="flex items-center justify-center gap-2 mt-2">
-             <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-             <p className="text-xs text-rog-red tracking-widest uppercase">System Offline</p>
-          </div>
-        </div>
-
-        <form onSubmit={handleLogin} className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Operator ID</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <User className="h-4 w-4 text-rog-red" />
-              </div>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="block w-full pl-10 pr-3 py-3 bg-black border border-gray-800 text-gray-200 placeholder-gray-600 focus:outline-none focus:border-rog-red focus:ring-1 focus:ring-rog-red transition-all font-mono text-sm"
-                placeholder="ENTER USERNAME"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Access Code</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock className="h-4 w-4 text-rog-red" />
-              </div>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="block w-full pl-10 pr-3 py-3 bg-black border border-gray-800 text-gray-200 placeholder-gray-600 focus:outline-none focus:border-rog-red focus:ring-1 focus:ring-rog-red transition-all font-mono text-sm"
-                placeholder="••••••••"
-              />
-            </div>
-          </div>
-
-          {error && (
-            <div className="p-3 bg-red-900/20 border border-red-500/50 text-red-500 text-xs font-mono uppercase text-center tracking-wide">
-              [!] {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            className="w-full py-3 px-4 bg-rog-red hover:bg-red-700 text-white font-bold tracking-widest uppercase transition-all duration-200 shadow-[0_0_15px_rgba(255,0,60,0.3)] hover:shadow-[0_0_25px_rgba(255,0,60,0.5)]"
-          >
-            Initialize Session
-          </button>
-        </form>
+      <div className="absolute bottom-8 text-center w-full text-gray-600 text-xs font-mono">
+          SECURE CONNECTION // ENCRYPTED 256-BIT
       </div>
     </div>
   );

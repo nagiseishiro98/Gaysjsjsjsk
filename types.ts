@@ -2,7 +2,8 @@ export enum KeyStatus {
   ACTIVE = 'ACTIVE',
   EXPIRED = 'EXPIRED',
   BANNED = 'BANNED',
-  PAUSED = 'PAUSED'
+  PAUSED = 'PAUSED',
+  ARCHIVED = 'ARCHIVED'
 }
 
 export enum DurationType {

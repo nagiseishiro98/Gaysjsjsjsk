@@ -3,18 +3,20 @@ import Login from './components/Login';
 import Sidebar from './components/Sidebar';
 import KeyManager from './components/KeyManager';
 import PythonIntegration from './components/PythonIntegration';
-import { Menu } from 'lucide-react';
+import { Menu, X, Shield, Terminal, Cpu } from 'lucide-react';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [mountAnim, setMountAnim] = useState(false);
 
   useEffect(() => {
     const session = localStorage.getItem('keymaster_auth');
     if (session === 'true') {
       setIsAuthenticated(true);
     }
+    setMountAnim(true);
   }, []);
 
   const handleLogin = () => {
@@ -32,52 +34,75 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-gray-200 font-sans selection:bg-rog-red/30">
-      <Sidebar 
-        activeTab={activeTab} 
-        onTabChange={setActiveTab} 
-        onLogout={handleLogout} 
-      />
-
+    <div className={`h-screen w-screen flex flex-col bg-rog-black text-white overflow-hidden transition-opacity duration-1000 ${mountAnim ? 'opacity-100' : 'opacity-0'} scanlines`}>
+      
+      {/* Background Effects */}
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-10 bg-grid-pattern bg-grid"></div>
+      
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-black border-b border-gray-800 z-50 flex items-center justify-between px-6">
-        <span className="font-bold text-white tracking-wider">ROG<span className="text-rog-red">ADMIN</span></span>
-        <button 
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 text-gray-400 hover:text-white"
-        >
-          <Menu className="w-6 h-6" />
-        </button>
+      <div className="md:hidden flex items-center justify-between p-4 border-b border-rog-border bg-rog-black z-50 relative">
+         <div className="font-bold text-xl tracking-widest text-white flex items-center gap-2">
+            <Cpu className="w-5 h-5 text-rog-red" />
+            ROG<span className="text-rog-red">ADMIN</span>
+         </div>
+         <button onClick={() => setIsMobileMenuOpen(true)} className="text-rog-red">
+            <Menu className="w-6 h-6" />
+         </button>
       </div>
 
-      {/* Mobile Menu */}
+      {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
-        <div className="md:hidden fixed top-16 left-0 right-0 bg-black border-b border-gray-800 z-40 p-4 space-y-2 shadow-2xl">
-          <button onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }} className="block w-full text-left px-4 py-3 bg-gray-900 text-white font-bold uppercase text-sm">DASHBOARD</button>
-          <button onClick={() => { setActiveTab('python'); setIsMobileMenuOpen(false); }} className="block w-full text-left px-4 py-3 bg-gray-900 text-white font-bold uppercase text-sm">INTEGRATION</button>
-          <button onClick={handleLogout} className="block w-full text-left px-4 py-3 bg-rog-red text-white font-bold uppercase text-sm">TERMINATE</button>
-        </div>
+         <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col p-8 animate-slide-in">
+            <div className="flex justify-between items-center mb-12">
+               <div className="font-bold text-xl text-rog-red tracking-widest">SYSTEM MENU</div>
+               <button onClick={() => setIsMobileMenuOpen(false)} className="text-white hover:text-rog-red transition-colors">
+                  <X className="w-8 h-8" />
+               </button>
+            </div>
+            
+            <nav className="flex flex-col gap-4">
+               <button 
+                 onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} 
+                 className={`text-left text-xl uppercase tracking-wider p-4 border-l-4 transition-all ${activeTab === 'dashboard' ? 'border-rog-red text-white bg-white/5' : 'border-transparent text-gray-500'}`}
+               >
+                 Dashboard
+               </button>
+               <button 
+                 onClick={() => {setActiveTab('python'); setIsMobileMenuOpen(false);}} 
+                 className={`text-left text-xl uppercase tracking-wider p-4 border-l-4 transition-all ${activeTab === 'python' ? 'border-rog-red text-white bg-white/5' : 'border-transparent text-gray-500'}`}
+               >
+                 Integration
+               </button>
+            </nav>
+
+            <button onClick={handleLogout} className="mt-auto py-6 border-t border-gray-800 text-center text-gray-500 hover:text-rog-red tracking-widest uppercase">
+               Disconnect Protocol
+            </button>
+         </div>
       )}
 
-      {/* Main Content */}
-      <main className="md:pl-72 pt-20 md:pt-0 min-h-screen bg-transparent">
-        <div className="max-w-7xl mx-auto p-6 md:p-12">
-          <div className="mb-10 border-b border-gray-900 pb-6">
-            <h1 className="text-4xl font-bold text-white tracking-widest uppercase mb-2">
-              {activeTab === 'dashboard' ? 'Command_Center' : 'Dev_Integration'}
-            </h1>
-            <div className="flex items-center gap-2 text-xs font-mono text-rog-red">
-              <span>//</span>
-              <span className="text-gray-500 uppercase">
-                {activeTab === 'dashboard' ? 'Manage License Protocols' : 'Generate Validation Logic'}
-              </span>
-            </div>
-          </div>
-
-          {activeTab === 'dashboard' && <KeyManager />}
-          {activeTab === 'python' && <PythonIntegration />}
+      <div className="flex-1 flex overflow-hidden relative z-10">
+        {/* Desktop Sidebar */}
+        <div className="hidden md:block w-64 z-20">
+            <Sidebar 
+                activeTab={activeTab} 
+                onTabChange={setActiveTab} 
+                onLogout={handleLogout} 
+            />
         </div>
-      </main>
+
+        {/* Main Content */}
+        <main className="flex-1 relative flex flex-col min-w-0 perspective-container">
+           {/* Seamless Transition Container */}
+           <div className="flex-1 overflow-hidden relative bg-black/20 p-4 md:p-10 scene-3d">
+              {/* We use a key here to force re-mounting and triggering CSS animations */}
+              <div key={activeTab} className="h-full w-full">
+                  {activeTab === 'dashboard' && <KeyManager />}
+                  {activeTab === 'python' && <PythonIntegration />}
+              </div>
+           </div>
+        </main>
+      </div>
     </div>
   );
 };

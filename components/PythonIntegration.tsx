@@ -1,133 +1,99 @@
 import React, { useState } from 'react';
-import { Code, Terminal, Shield, Cpu, Copy, Check, Loader2 } from 'lucide-react';
+import { Check, Copy, Play, Terminal } from 'lucide-react';
 import { generatePythonCode } from '../services/geminiService';
 
 const PythonIntegration: React.FC = () => {
-  const [code, setCode] = useState<string>(`# SYSTEM READY.\n# INITIALIZE GENERATION SEQUENCE FOR CUSTOM CLIENT SCRIPT...`);
+  const [code, setCode] = useState<string>(`# WAITING FOR COMMAND...\n# SELECT SECURITY PROTOCOL TO BEGIN.`);
   const [isLoading, setIsLoading] = useState(false);
   const [securityLevel, setSecurityLevel] = useState('Standard');
   const [copied, setCopied] = useState(false);
 
   const handleGenerate = async () => {
     setIsLoading(true);
+    setCode("# INITIATING AI PROTOCOL...\n# GENERATING SECURE BOOTLOADER...");
     try {
       const generated = await generatePythonCode(securityLevel);
       setCode(generated);
     } catch (e) {
-      setCode("# ERROR: API LINK FAILURE. CHECK CONFIGURATION.");
+      setCode("# SYSTEM ERROR: CONNECTION REFUSED.");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-       const textArea = document.createElement("textarea");
-       textArea.value = code;
-       document.body.appendChild(textArea);
-       textArea.select();
-       document.execCommand('copy');
-       document.body.removeChild(textArea);
-       setCopied(true);
-       setTimeout(() => setCopied(false), 2000);
-    }
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="space-y-6 font-sans">
-      <div className="bg-black border border-gray-900 p-8 shadow-2xl relative overflow-hidden">
-        {/* Decorative line */}
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-rog-red to-transparent"></div>
-        
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-          <div>
-            <h2 className="text-2xl font-bold text-white flex items-center gap-2 tracking-widest uppercase">
-              <Terminal className="w-6 h-6 text-rog-red" />
-              CLIENT_INTEGRATION
-            </h2>
-            <p className="text-gray-500 text-sm font-mono mt-1">
-              // GENERATE SECURE PYTHON CLIENT_SIDE VALIDATION LOGIC
-            </p>
-          </div>
-          <div className="flex items-center gap-1 bg-gray-900 p-1 border border-gray-800">
-            {['Standard', 'High'].map((level) => (
-               <button
-                 key={level}
-                 onClick={() => setSecurityLevel(level)}
-                 className={`px-6 py-2 text-xs font-bold uppercase tracking-widest transition-all ${securityLevel === level ? 'bg-rog-red text-white shadow-[0_0_10px_rgba(255,0,60,0.4)]' : 'text-gray-500 hover:text-white'}`}
-               >
-                 {level}
-               </button>
-            ))}
-          </div>
+    <div className="flex flex-col h-full md:p-8 p-4 animate-slide-in">
+      {/* Top Controls */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-6 bg-rog-panel p-6 border border-gray-800 clip-rog-inv">
+        <div>
+           <h2 className="text-xl font-bold uppercase italic tracking-wider text-white flex items-center gap-2">
+               <Terminal className="w-5 h-5 text-rog-red" />
+               Loader Generation
+           </h2>
+           <p className="text-xs text-gray-500 mt-1 font-mono">GENERATE PYTHON 3.X COMPATIBLE CLIENT SCRIPTS</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Controls */}
-          <div className="space-y-4">
-             <div className="bg-gray-900/30 border border-gray-800 p-4 relative">
-               <div className="absolute top-0 left-0 w-1 h-full bg-gray-700"></div>
-               <h3 className="text-white font-bold mb-3 flex items-center gap-2 text-xs uppercase tracking-wider">
-                 <Cpu className="w-4 h-4 text-rog-red" /> Protocol Specs
-               </h3>
-               <ul className="space-y-4 text-xs font-mono text-gray-400">
-                 <li className="flex gap-3">
-                   <span className="text-rog-red">[01]</span>
-                   HWID EXTRACTION (UUID+MAC)
-                 </li>
-                 <li className="flex gap-3">
-                   <span className="text-rog-red">[02]</span>
-                   SERVER HANDSHAKE (POST/JSON)
-                 </li>
-                 <li className="flex gap-3">
-                   <span className="text-rog-red">[03]</span>
-                   STRICT BINDING ENFORCEMENT
-                 </li>
-               </ul>
-             </div>
+        <div className="flex items-center gap-4">
+            <div className="flex bg-black p-1 border border-gray-800">
+              {['Standard', 'High'].map((level) => (
+                  <button
+                    key={level}
+                    onClick={() => setSecurityLevel(level)}
+                    className={`px-6 py-2 text-xs font-bold uppercase tracking-widest transition-all ${
+                        securityLevel === level 
+                        ? 'bg-rog-red text-white shadow-[0_0_10px_rgba(255,0,60,0.3)]' 
+                        : 'text-gray-500 hover:text-white'
+                    }`}
+                  >
+                    {level}
+                  </button>
+              ))}
+           </div>
+           
+           <button
+             onClick={handleGenerate}
+             disabled={isLoading}
+             className="bg-white text-black px-6 py-3 text-sm font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-gray-200 disabled:opacity-50 clip-rog transition-transform active:scale-95"
+           >
+             {isLoading ? 'PROCESSING...' : <><Play className="w-4 h-4 fill-current" /> EXECUTE</>}
+           </button>
+        </div>
+      </div>
 
-             <button
-               onClick={handleGenerate}
-               disabled={isLoading}
-               className="w-full py-4 bg-white text-black hover:bg-gray-200 font-bold tracking-widest uppercase transition-all flex items-center justify-center gap-2 text-sm"
-             >
-               {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Code className="w-4 h-4" />}
-               {isLoading ? 'COMPUTING...' : 'GENERATE_SOURCE'}
-             </button>
-          </div>
-
-          {/* Code Editor Panel */}
-          <div className="lg:col-span-2 relative group">
-            <div className="absolute right-4 top-4 z-10">
-              <button 
+      {/* Terminal Window */}
+      <div className="flex-1 bg-black border border-gray-800 relative flex flex-col shadow-2xl font-mono">
+         {/* Terminal Header */}
+         <div className="flex items-center justify-between px-4 py-2 bg-rog-dark border-b border-gray-800">
+            <div className="flex gap-2">
+                <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+            </div>
+            <span className="text-xs text-gray-500 tracking-widest uppercase">client_loader.py</span>
+            <button 
                 onClick={handleCopy}
-                className="bg-rog-red hover:bg-red-600 text-white p-2 shadow-lg transition-all"
-                title="COPY_BUFFER"
-              >
+                className="text-xs text-rog-accent hover:text-white flex items-center gap-2 uppercase font-bold"
+            >
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              </button>
-            </div>
-            <div className="h-full min-h-[500px] bg-gray-950 border border-gray-800 p-1 overflow-hidden">
-               <div className="flex items-center justify-between bg-gray-900 px-4 py-2 border-b border-gray-800">
-                 <span className="text-xs text-rog-red font-mono uppercase">client_loader.py</span>
-                 <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-gray-700"></div>
-                    <div className="w-2 h-2 bg-gray-700"></div>
-                    <div className="w-2 h-2 bg-gray-700"></div>
-                 </div>
-               </div>
-               <div className="p-4 h-[450px] overflow-auto custom-scrollbar">
-                 <pre className="font-mono text-xs text-gray-300 whitespace-pre-wrap leading-relaxed">
-                   {code}
-                 </pre>
-               </div>
-            </div>
-          </div>
-        </div>
+                {copied ? 'BUFFER COPIED' : 'COPY BUFFER'}
+            </button>
+         </div>
+         
+         {/* Code Area */}
+         <div className="flex-1 overflow-auto p-6 relative">
+            {/* Matrix Rain Effect Overlay (Subtle) */}
+            <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(255,0,0,0.02),rgba(255,0,0,0.06))] z-0 bg-[length:100%_2px,3px_100%]"></div>
+            
+            <pre className="relative z-10 text-sm text-gray-300 leading-relaxed selection:bg-rog-red selection:text-white">
+                <code>{code}</code>
+            </pre>
+         </div>
       </div>
     </div>
   );
