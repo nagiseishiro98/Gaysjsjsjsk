@@ -3,7 +3,7 @@ import Login from './components/Login';
 import Sidebar from './components/Sidebar';
 import KeyManager from './components/KeyManager';
 import PythonIntegration from './components/PythonIntegration';
-import { Menu, X, Shield, Terminal, Cpu } from 'lucide-react';
+import { Menu, X, Cpu } from 'lucide-react';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -34,13 +34,14 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className={`h-screen w-screen flex flex-col bg-rog-black text-white overflow-hidden transition-opacity duration-1000 ${mountAnim ? 'opacity-100' : 'opacity-0'} scanlines`}>
+    <div className={`h-screen w-screen flex flex-col bg-[#050505] text-white overflow-hidden transition-opacity duration-1000 ${mountAnim ? 'opacity-100' : 'opacity-0'}`}>
       
-      {/* Background Effects */}
-      <div className="absolute inset-0 z-0 pointer-events-none opacity-10 bg-grid-pattern bg-grid"></div>
+      {/* Cleaner Background: Subtle Spotlight instead of Grid Lines */}
+      <div className="absolute top-[-20%] left-[20%] w-[60vw] h-[60vw] bg-rog-red/5 rounded-full blur-[120px] pointer-events-none z-0 mix-blend-screen"></div>
+      <div className="absolute bottom-[-20%] right-[10%] w-[40vw] h-[40vw] bg-blue-500/5 rounded-full blur-[100px] pointer-events-none z-0 mix-blend-screen"></div>
       
       {/* Mobile Header */}
-      <div className="md:hidden flex items-center justify-between p-4 border-b border-rog-border bg-rog-black z-50 relative">
+      <div className="md:hidden flex items-center justify-between p-4 border-b border-gray-900 bg-[#050505] z-50 relative">
          <div className="font-bold text-xl tracking-widest text-white flex items-center gap-2">
             <Cpu className="w-5 h-5 text-rog-red" />
             ROG<span className="text-rog-red">ADMIN</span>
@@ -94,7 +95,7 @@ const App: React.FC = () => {
         {/* Main Content */}
         <main className="flex-1 relative flex flex-col min-w-0 perspective-container">
            {/* Seamless Transition Container */}
-           <div className="flex-1 overflow-hidden relative bg-black/20 p-4 md:p-10 scene-3d">
+           <div className="flex-1 overflow-hidden relative bg-transparent p-4 md:p-10 scene-3d">
               {/* We use a key here to force re-mounting and triggering CSS animations */}
               <div key={activeTab} className="h-full w-full">
                   {activeTab === 'dashboard' && <KeyManager />}
