@@ -2,15 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { 
   Plus, Search, Trash2, Check,
   RefreshCw, X, Shield, Activity, Server, Zap, AlertTriangle,
-  FileText, Globe, Monitor,
-  Key, Copy, Loader2, RotateCcw, Fingerprint, Clock, Laptop
+  FileText, Monitor,
+  Key, Copy, Loader2, RotateCcw, Fingerprint, Clock, Laptop,
+  Download, ArrowUpDown
 } from 'lucide-react';
 import { createKey, toggleKeyStatus, deleteKey, subscribeToKeys, resetHwid } from '../services/mockDb';
 import { LicenseKey, KeyStatus, DurationType } from '../types';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const KeyManager: React.FC = () => {
   const [keys, setKeys] = useState<LicenseKey[]>([]);
   const [filter, setFilter] = useState('');
+  const [sortOrder, setSortOrder] = useState<'NEWEST' | 'OLDEST' | 'EXPIRES_SOON'>('NEWEST');
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -119,6 +122,35 @@ const KeyManager: React.FC = () => {
     }
   };
 
+  const handleExportCsv = () => {
+    const headers = ["ID", "Key", "Status", "Note", "Created", "Expires", "Bound HWID", "Device Name"];
+    const rows = keys.map(k => [
+      k.id,
+      k.key,
+      k.status,
+      k.note || "",
+      new Date(k.createdAt).toISOString(),
+      k.expiresAt ? new Date(k.expiresAt).toISOString() : "Lifetime",
+      k.boundDeviceId || "Unbound",
+      k.deviceName || ""
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(r => r.map(cell => `"${cell}"`).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `rog_keys_export_${Date.now()}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const getFormattedTimeLeft = (expiresAt: number | null) => {
     if (!expiresAt) return 'LIFETIME';
     const now = Date.now();
@@ -132,37 +164,62 @@ const KeyManager: React.FC = () => {
 
   const filteredKeys = keys.filter(k => 
     k.key.toLowerCase().includes(filter.toLowerCase()) || k.note.toLowerCase().includes(filter.toLowerCase())
-  );
+  ).sort((a, b) => {
+    if (sortOrder === 'NEWEST') return b.createdAt - a.createdAt;
+    if (sortOrder === 'OLDEST') return a.createdAt - b.createdAt;
+    if (sortOrder === 'EXPIRES_SOON') {
+      const expA = a.expiresAt || 9999999999999;
+      const expB = b.expiresAt || 9999999999999;
+      return expA - expB;
+    }
+    return 0;
+  });
 
   return (
     <div className="flex flex-col gap-4 text-white h-full">
       
       {/* Error Banner */}
-      {globalError && (
-        <div className="bg-rog-red/10 border border-rog-red text-rog-red p-3 rounded text-xs font-mono flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span className="flex-1">{globalError}</span>
-            <button onClick={() => setGlobalError(null)}><X className="w-4 h-4"/></button>
-        </div>
-      )}
+      <AnimatePresence>
+        {globalError && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="bg-rog-red/10 border border-rog-red text-rog-red p-3 rounded text-xs font-mono flex items-center gap-2 overflow-hidden"
+          >
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span className="flex-1">{globalError}</span>
+              <button onClick={() => setGlobalError(null)}><X className="w-4 h-4"/></button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 gap-3 md:gap-6">
-          <div className="bg-[#0e0e10] border border-[#222] p-3 md:p-4 rounded flex flex-col justify-between relative overflow-hidden group">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+            className="bg-[#0e0e10] border border-[#222] p-3 md:p-4 rounded flex flex-col justify-between relative overflow-hidden group"
+          >
              <div className="text-[9px] md:text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Active Keys</div>
              <div className="text-2xl md:text-4xl font-black text-white">{keys.filter(k => k.status === KeyStatus.ACTIVE).length}</div>
              <Activity className="absolute -bottom-1 -right-1 w-8 h-8 md:w-12 md:h-12 text-rog-red opacity-20 group-hover:opacity-40 transition-opacity" />
-          </div>
-          <div className="bg-[#0e0e10] border border-[#222] p-3 md:p-4 rounded flex flex-col justify-between relative overflow-hidden group">
+          </motion.div>
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+            className="bg-[#0e0e10] border border-[#222] p-3 md:p-4 rounded flex flex-col justify-between relative overflow-hidden group"
+          >
              <div className="text-[9px] md:text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Latency</div>
              <div className="text-2xl md:text-4xl font-black text-white">{serverLoad}<span className="text-[10px] md:text-sm text-gray-600 ml-1 font-mono">ms</span></div>
              <Server className="absolute -bottom-1 -right-1 w-8 h-8 md:w-12 md:h-12 text-green-500 opacity-20 group-hover:opacity-40 transition-opacity" />
-          </div>
+          </motion.div>
       </div>
 
       {/* Action Bar */}
-      <div className="flex gap-2 h-12">
-          <div className="relative flex-1">
+      <motion.div 
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
+        className="flex flex-col md:flex-row gap-2 md:h-12"
+      >
+          <div className="relative flex-1 h-12 md:h-full">
              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
              <input 
                value={filter}
@@ -171,36 +228,70 @@ const KeyManager: React.FC = () => {
                className="w-full h-full bg-[#0e0e10] border border-[#222] rounded pl-9 pr-3 text-xs text-white focus:border-rog-red outline-none transition-colors font-mono placeholder-gray-700 focus:bg-[#151518]"
              />
           </div>
-          <button 
-             onClick={() => setCreateModalOpen(true)}
-             className="bg-rog-red hover:bg-red-600 text-white px-4 rounded font-bold uppercase tracking-wider text-xs flex items-center justify-center shrink-0 transition-colors shadow-[0_0_15px_rgba(255,0,60,0.3)] gap-2"
-          >
-             <Plus className="w-5 h-5" /> <span className="hidden md:inline">Generate</span>
-          </button>
-          <button 
-             onClick={handleForceSync}
-             className="bg-[#0e0e10] border border-[#222] text-gray-400 hover:text-white px-3 rounded flex items-center justify-center shrink-0 transition-colors hover:border-gray-700"
-          >
-             <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin text-rog-red' : ''}`} />
-          </button>
-      </div>
+          
+          <div className="flex gap-2 h-12 md:h-full">
+             <div className="relative group">
+                <select 
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value as any)}
+                  className="h-full appearance-none bg-[#0e0e10] border border-[#222] rounded pl-3 pr-8 text-[10px] text-gray-400 font-bold uppercase outline-none focus:border-gray-600 hover:text-white cursor-pointer w-full md:w-auto"
+                >
+                  <option value="NEWEST">Newest First</option>
+                  <option value="OLDEST">Oldest First</option>
+                  <option value="EXPIRES_SOON">Expires Soon</option>
+                </select>
+                <ArrowUpDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-600 pointer-events-none" />
+             </div>
+
+             <button 
+               onClick={handleExportCsv}
+               className="bg-[#0e0e10] border border-[#222] hover:border-gray-600 text-gray-400 hover:text-white px-3 rounded flex items-center justify-center shrink-0 transition-colors"
+               title="Export CSV"
+             >
+               <Download className="w-4 h-4" />
+             </button>
+             
+             <button 
+                onClick={() => setCreateModalOpen(true)}
+                className="bg-rog-red hover:bg-red-600 text-white px-4 rounded font-bold uppercase tracking-wider text-xs flex items-center justify-center shrink-0 transition-colors shadow-[0_0_15px_rgba(255,0,60,0.3)] gap-2"
+             >
+                <Plus className="w-5 h-5" /> <span className="hidden md:inline">Generate</span>
+             </button>
+             
+             <button 
+                onClick={handleForceSync}
+                className="bg-[#0e0e10] border border-[#222] text-gray-400 hover:text-white px-3 rounded flex items-center justify-center shrink-0 transition-colors hover:border-gray-700"
+             >
+                <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin text-rog-red' : ''}`} />
+             </button>
+          </div>
+      </motion.div>
 
       {/* Keys List */}
       <div className="space-y-3 pb-20">
           {filteredKeys.length === 0 ? (
-              <div className="text-center py-20 opacity-30 flex flex-col items-center border border-dashed border-gray-800 rounded">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20 opacity-30 flex flex-col items-center border border-dashed border-gray-800 rounded">
                  {isLoading ? <Loader2 className="w-8 h-8 animate-spin mb-2"/> : <Shield className="w-8 h-8 mb-2"/>}
                  <span className="text-xs uppercase tracking-widest">{isLoading ? 'Syncing Database...' : 'No Keys Found'}</span>
-              </div>
+              </motion.div>
           ) : (
-              filteredKeys.map((k) => {
+              <AnimatePresence mode="popLayout">
+              {filteredKeys.map((k) => {
                   const isExpired = k.expiresAt && Date.now() > k.expiresAt;
                   const isDeleting = deletingIds.has(k.id);
                   const isResetting = resettingIds.has(k.id);
                   const timeLeft = getFormattedTimeLeft(k.expiresAt);
 
                   return (
-                    <div key={k.id} className={`bg-[#0e0e10] border border-[#222] p-4 rounded-sm relative group ${isDeleting ? 'opacity-50' : 'hover:border-gray-700'} transition-colors`}>
+                    <motion.div 
+                      layout
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: isDeleting ? 0.5 : 1, scale: 1 }}
+                      exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                      transition={{ duration: 0.2 }}
+                      key={k.id} 
+                      className={`bg-[#0e0e10] border border-[#222] p-4 rounded-sm relative group ${isDeleting ? 'opacity-50 pointer-events-none' : 'hover:border-gray-700'} transition-colors`}
+                    >
                        
                        <div className="flex flex-col lg:flex-row lg:items-center gap-4">
                            
@@ -282,16 +373,29 @@ const KeyManager: React.FC = () => {
                            </div>
                        </div>
 
-                    </div>
+                    </motion.div>
                   );
-              })
+              })}
+              </AnimatePresence>
           )}
       </div>
 
       {/* CREATE MODAL */}
+      <AnimatePresence>
       {isCreateModalOpen && (
-        <div className="absolute inset-0 z-[60] bg-black/90 backdrop-blur-sm flex items-end md:items-center justify-center animate-fade-in p-0 md:p-4">
-            <div className="w-full h-full md:h-auto md:max-h-[600px] md:max-w-lg bg-[#0e0e10] md:border border-[#333] md:rounded-lg flex flex-col animate-slide-up overflow-hidden shadow-2xl">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="absolute inset-0 z-[60] bg-black/90 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+        >
+            <motion.div 
+              initial={{ opacity: 0, y: 50, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 50, scale: 0.95 }}
+              transition={{ type: "spring", bounce: 0.3 }}
+              className="w-full h-full md:h-auto md:max-h-[600px] md:max-w-lg bg-[#0e0e10] md:border border-[#333] md:rounded-lg flex flex-col overflow-hidden shadow-2xl"
+            >
                 
                 <div className="p-4 border-b border-[#222] flex justify-between items-center bg-[#151518]">
                     <div className="font-bold text-white uppercase tracking-wider flex items-center gap-2">
@@ -367,9 +471,10 @@ const KeyManager: React.FC = () => {
                     </button>
                 </div>
 
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 };

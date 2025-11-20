@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Check, Copy, Code2, RefreshCw, Globe, ArrowRight, Database, Terminal } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const PythonIntegration: React.FC = () => {
   const [copied, setCopied] = useState(false);
@@ -236,11 +237,31 @@ fi
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, x: -20 },
+    visible: { opacity: 1, x: 0 }
+  };
+
   return (
-    <div className="flex flex-col h-full md:p-0 p-4 animate-slide-in pb-20 md:pb-8">
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="flex flex-col h-full md:p-0 p-4 pb-20 md:pb-8"
+    >
       
       {/* Top Bar */}
-      <div className="bg-[#121214] border-b border-rog-red/30 p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-6">
+      <motion.div variants={itemVariants} className="bg-[#121214] border-b border-rog-red/30 p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-6">
          <div>
              <div className="flex items-center gap-2 mb-1">
                 <Code2 className="w-6 h-6 text-rog-red" />
@@ -255,12 +276,12 @@ fi
                 <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Serverless</div>
             </div>
          </div>
-      </div>
+      </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
           
           {/* Left Column: Info */}
-          <div className="lg:col-span-4 space-y-6 h-full">
+          <motion.div variants={itemVariants} className="lg:col-span-4 space-y-6 h-full">
               
               <div className="bg-[#1a1a1d] border border-rog-border p-5 rounded-sm">
                   <h3 className="text-rog-red font-bold uppercase tracking-widest text-xs mb-4 flex items-center gap-2">
@@ -306,10 +327,10 @@ fi
                       </div>
                   </button>
               </div>
-          </div>
+          </motion.div>
 
           {/* Right Column: Code Editor */}
-          <div className="lg:col-span-8 flex flex-col h-[600px] lg:h-full min-h-[500px] bg-[#08080a] border border-gray-800 rounded-sm shadow-2xl">
+          <motion.div variants={itemVariants} className="lg:col-span-8 flex flex-col h-[600px] lg:h-full min-h-[500px] bg-[#08080a] border border-gray-800 rounded-sm shadow-2xl">
              <div className="flex items-center justify-between px-4 py-3 bg-[#1a1a1d] border-b border-gray-800">
                 <div className="flex items-center gap-3">
                     <div className="flex gap-1.5">
@@ -335,10 +356,10 @@ fi
                     <code>{activeTab === 'python' ? pythonCode : bashCode}</code>
                 </pre>
              </div>
-          </div>
+          </motion.div>
 
       </div>
-    </div>
+    </motion.div>
   );
 };
 

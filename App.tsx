@@ -5,6 +5,7 @@ import PythonIntegration from './components/PythonIntegration';
 import ApiSection from './components/ApiSection';
 import { Menu, X, Cpu, LayoutGrid, Code, LogOut, Clock, Server, Activity } from 'lucide-react';
 import { subscribeToAuth, logoutUser } from './services/mockDb';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -57,7 +58,7 @@ const App: React.FC = () => {
       <div className="w-full h-[100dvh] md:h-[90vh] md:w-[95vw] md:max-w-7xl bg-[#050505] relative flex flex-col shadow-2xl md:border border-[#333] md:rounded-xl overflow-hidden transition-all duration-300">
       
         {/* Header */}
-        <div className="flex items-center justify-between p-4 md:px-8 border-b border-gray-900 bg-[#0a0a0c] z-50 shrink-0 h-16 md:h-20">
+        <div className="flex items-center justify-between p-4 md:px-8 border-b border-gray-900 bg-[#0a0a0c] z-50 shrink-0 h-16 md:h-20 relative">
            <div className="font-bold text-xl md:text-2xl tracking-widest text-white flex items-center gap-3">
               <div className="bg-rog-red/10 p-2 rounded border border-rog-red/30">
                 <Cpu className="w-4 h-4 md:w-5 md:h-5 text-rog-red" />
@@ -66,7 +67,7 @@ const App: React.FC = () => {
            </div>
 
            {/* Desktop Nav Tabs (Visible only on MD+) */}
-           <div className="hidden md:flex items-center gap-1 bg-black/50 p-1 rounded border border-gray-800 absolute left-1/2 -translate-x-1/2">
+           <div className="hidden md:flex items-center gap-1 bg-black/50 p-1 rounded border border-gray-800 absolute left-1/2 -translate-x-1/2 backdrop-blur-sm">
               {[
                 { id: 'dashboard', label: 'KEYS', icon: LayoutGrid },
                 { id: 'python', label: 'INTEGRATION', icon: Code },
@@ -75,12 +76,22 @@ const App: React.FC = () => {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center gap-2 px-6 py-2 rounded text-xs font-bold tracking-wider transition-all
-                    ${activeTab === item.id ? 'bg-rog-red text-white shadow-lg' : 'text-gray-500 hover:text-white hover:bg-white/5'}
+                  className={`flex items-center gap-2 px-6 py-2 rounded text-xs font-bold tracking-wider transition-all relative overflow-hidden
+                    ${activeTab === item.id ? 'text-white shadow-[0_0_10px_rgba(255,0,60,0.4)]' : 'text-gray-500 hover:text-white hover:bg-white/5'}
                   `}
                 >
-                  <item.icon className="w-3 h-3" />
-                  {item.label}
+                  {activeTab === item.id && (
+                    <motion.div
+                      layoutId="nav-highlight"
+                      className="absolute inset-0 bg-rog-red"
+                      initial={false}
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
+                  <div className="relative flex items-center gap-2 z-10">
+                    <item.icon className="w-3 h-3" />
+                    {item.label}
+                  </div>
                 </button>
               ))}
            </div>
@@ -108,8 +119,15 @@ const App: React.FC = () => {
         </div>
 
         {/* Mobile Menu Overlay */}
+        <AnimatePresence>
         {isMobileMenuOpen && (
-           <div className="absolute inset-0 z-[100] bg-[#050505]/95 backdrop-blur-xl flex flex-col p-6 animate-fade-in md:hidden">
+           <motion.div 
+              initial={{ opacity: 0, x: "100%" }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="absolute inset-0 z-[100] bg-[#050505]/95 backdrop-blur-xl flex flex-col p-6 md:hidden"
+           >
               <div className="flex justify-between items-center mb-8">
                  <div className="font-bold text-lg text-rog-red tracking-widest flex items-center gap-2">
                     <Activity className="w-5 h-5" /> SYSTEM MENU
@@ -145,15 +163,27 @@ const App: React.FC = () => {
                       SECURE CONNECTION ESTABLISHED
                   </div>
               </div>
-           </div>
+           </motion.div>
         )}
+        </AnimatePresence>
 
         {/* Main Content */}
         <main className="flex-1 relative overflow-y-auto overflow-x-hidden custom-scrollbar p-4 md:p-8 bg-[#050505] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#111] via-[#050505] to-[#050505]">
-           <div key={activeTab} className="w-full h-full animate-fadeIn pb-10 md:pb-0 max-w-6xl mx-auto">
-              {activeTab === 'dashboard' && <KeyManager />}
-              {activeTab === 'python' && <PythonIntegration />}
-              {activeTab === 'api' && <ApiSection />}
+           <div className="w-full h-full max-w-6xl mx-auto pb-10 md:pb-0">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="h-full"
+                >
+                  {activeTab === 'dashboard' && <KeyManager />}
+                  {activeTab === 'python' && <PythonIntegration />}
+                  {activeTab === 'api' && <ApiSection />}
+                </motion.div>
+              </AnimatePresence>
            </div>
         </main>
       </div>

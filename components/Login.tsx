@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Lock, ArrowRight, Cpu, ShieldCheck, User, AlertTriangle } from 'lucide-react';
 import { loginUser } from '../services/mockDb';
+import { motion } from 'framer-motion';
 
 interface LoginProps {
   onLogin: () => void;
@@ -19,7 +20,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     
     try {
       await loginUser(email, password);
-      // onLogin is optional now because App.tsx detects the auth change
       if (onLogin) onLogin();
     } catch (err: any) {
       console.error("Login Error:", err);
@@ -30,7 +30,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       } else if (err.code === 'auth/network-request-failed') {
         setError('NETWORK ERROR: OFFLINE');
       } else {
-        // Show the specific error code to help debug "Connection Failed"
         setError(`CONN_ERR: ${err.code || 'UNKNOWN'}`);
       }
     } finally {
@@ -45,24 +44,38 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       <div className="absolute bottom-0 right-0 w-1/3 h-1/3 bg-rog-red/5 blur-[100px] rounded-full pointer-events-none"></div>
       
       {/* Main Login Card */}
-      <div className="relative z-10 w-full max-w-md p-1">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.5, type: "spring" }}
+        className="relative z-10 w-full max-w-md p-1"
+      >
          <div className="bg-[#0e0e10] border border-gray-800 relative p-6 md:p-10 shadow-2xl clip-angle">
              
              {/* Header */}
              <div className="flex flex-col items-center mb-8 md:mb-12">
-                <div className="bg-rog-red/10 p-3 md:p-4 rounded-full border border-rog-red/20 mb-4">
+                <motion.div 
+                  initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2 }}
+                  className="bg-rog-red/10 p-3 md:p-4 rounded-full border border-rog-red/20 mb-4"
+                >
                     <Cpu className="w-8 h-8 md:w-10 md:h-10 text-rog-red" />
-                </div>
-                <h1 className="text-3xl md:text-4xl font-black italic text-white tracking-tighter leading-none mb-1">
+                </motion.div>
+                <motion.h1 
+                   initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
+                   className="text-3xl md:text-4xl font-black italic text-white tracking-tighter leading-none mb-1"
+                >
                     ROG<span className="text-rog-red">ADMIN</span>
-                </h1>
-                <div className="text-gray-500 text-[10px] md:text-xs font-mono tracking-[0.4em] uppercase">
+                </motion.h1>
+                <motion.div 
+                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+                   className="text-gray-500 text-[10px] md:text-xs font-mono tracking-[0.4em] uppercase"
+                >
                     Secure Database Access
-                </div>
+                </motion.div>
              </div>
 
              <form onSubmit={handleLogin} className="space-y-4 md:space-y-6">
-               <div className="space-y-2">
+               <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }} className="space-y-2">
                  <div className="relative group">
                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                      <User className="w-4 h-4 text-gray-600 group-focus-within:text-rog-red transition-colors" />
@@ -77,9 +90,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                      required
                    />
                  </div>
-               </div>
+               </motion.div>
                
-               <div className="space-y-2">
+               <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }} className="space-y-2">
                  <div className="relative group">
                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                      <Lock className="w-4 h-4 text-gray-600 group-focus-within:text-rog-red transition-colors" />
@@ -93,33 +106,34 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                      required
                    />
                  </div>
-               </div>
+               </motion.div>
 
                {error && (
-                   <div className="text-xs text-rog-red text-center font-mono py-2 border-t border-b border-rog-red/20 bg-rog-red/5 flex items-center justify-center gap-2">
+                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="text-xs text-rog-red text-center font-mono py-2 border-t border-b border-rog-red/20 bg-rog-red/5 flex items-center justify-center gap-2">
                        <AlertTriangle className="w-3 h-3" /> {error}
-                   </div>
+                   </motion.div>
                )}
 
-               <button
+               <motion.button
+                   initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}
                    type="submit"
                    disabled={isLoading}
                    className="w-full mt-6 bg-rog-red hover:bg-red-600 text-white font-bold py-3 uppercase tracking-widest transition-all flex items-center justify-center gap-2 group clip-angle-top active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                >
                    <span>{isLoading ? 'Authenticating...' : 'Connect DB'}</span>
                    {!isLoading && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
-               </button>
+               </motion.button>
              </form>
 
              {/* Footer */}
-             <div className="mt-8 md:mt-10 flex justify-center items-center gap-2 opacity-30 hover:opacity-60 transition-opacity">
+             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }} className="mt-8 md:mt-10 flex justify-center items-center gap-2 opacity-30 hover:opacity-60 transition-opacity">
                  <ShieldCheck className="w-3 h-3 text-gray-400" />
                  <span className="text-[10px] text-gray-400 font-mono tracking-wider">
                      FIREBASE ENCRYPTED // V.3.0
                  </span>
-             </div>
+             </motion.div>
          </div>
-      </div>
+      </motion.div>
     </div>
   );
 };

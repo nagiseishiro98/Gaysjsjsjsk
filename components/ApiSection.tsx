@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Copy, Shield, Database, AlertTriangle, Lock, Eye, Check } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 // Configuration from your mockDb.ts
 const FIREBASE_CONFIG = {
@@ -16,18 +17,20 @@ service cloud.firestore {
     
     // KEYS COLLECTION
     match /keys/{keyId} {
-      // 1. Admin (React App) can do everything
-      allow read, write: if true; 
+      // 1. ADMIN ACCESS (Authenticated Users)
+      // Full access to create, read, update, delete
+      allow read, write: if request.auth != null;
       
-      // 2. Python Client (Public) access
-      // Allow finding keys to validate
-      allow list: if true;
-      allow get: if true;
+      // 2. PUBLIC ACCESS (Python Client / Unauthenticated)
+      // Allow validating keys (Read Only)
+      allow get, list: if true;
       
-      // Allow updating binding info securely
-      // Added 'deviceName' so the client can report its name
-      allow update: if request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['boundDeviceId', 'lastUsed', 'ip', 'usageCount', 'deviceName']);
+      // Allow binding device (Restricted Update)
+      // Only allows updating specific fields for device locking
+      // Denies creating new keys or deleting existing ones
+      allow update: if request.auth == null 
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['boundDeviceId', 'deviceName', 'lastUsed', 'ip']);
     }
   }
 }`;
@@ -38,11 +41,31 @@ service cloud.firestore {
     setTimeout(() => setCopiedRule(false), 2000);
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 }
+  };
+
   return (
-    <div className="flex flex-col h-full md:p-8 p-4 animate-slide-in pb-20 md:pb-8">
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="flex flex-col h-full md:p-8 p-4 pb-20 md:pb-8"
+    >
       
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4 bg-rog-panel p-6 border-b border-rog-red/30">
+      <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4 bg-rog-panel p-6 border-b border-rog-red/30">
         <div>
            <h2 className="text-xl font-bold uppercase italic tracking-wider text-white flex items-center gap-2">
                <Database className="w-6 h-6 text-rog-red" />
@@ -50,12 +73,12 @@ service cloud.firestore {
            </h2>
            <p className="text-xs text-gray-400 mt-1 font-mono">DIRECT FIRESTORE CONNECTION</p>
         </div>
-      </div>
+      </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
           
           {/* Column 1: Credentials */}
-          <div className="space-y-6">
+          <motion.div variants={itemVariants} className="space-y-6">
               
               {/* Alert */}
               <div className="bg-orange-500/10 border border-orange-500/30 p-4 rounded flex gap-3 items-start">
@@ -93,11 +116,12 @@ service cloud.firestore {
                       </div>
                   </div>
               </div>
-          </div>
+          </motion.div>
 
           {/* Column 2: Security Rules */}
-          <div className="flex flex-col h-full">
-              <div className="bg-[#1a1a1d] border border-rog-border rounded-sm flex flex-col h-full overflow-hidden">
+          {/* Fix: Added min-h-[500px] for mobile devices to ensure visibility */}
+          <motion.div variants={itemVariants} className="flex flex-col h-[500px] lg:h-full">
+              <div className="bg-[#1a1a1d] border border-rog-border rounded-sm flex flex-col h-full overflow-hidden shadow-2xl">
                   <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-[#151518]">
                       <div className="flex items-center gap-2">
                           <Shield className="w-4 h-4 text-rog-red" />
@@ -127,10 +151,10 @@ service cloud.firestore {
                       </div>
                   </div>
               </div>
-          </div>
+          </motion.div>
 
       </div>
-    </div>
+    </motion.div>
   );
 };
 
