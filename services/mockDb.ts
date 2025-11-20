@@ -1,6 +1,6 @@
 import { LicenseKey, KeyStatus, GenerateKeyParams, DurationType } from '../types';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, Timestamp } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
 
 // ==========================================================================
@@ -18,7 +18,6 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-// We use a try-catch to prevent the app from crashing if config is invalid during development
 let db: any;
 let auth: any;
 
@@ -35,10 +34,6 @@ const COLLECTION_NAME = 'keys';
 
 // --- AUTHENTICATION SERVICE ---
 
-/**
- * Logs in the user using Firebase Authentication.
- * NOTE: You must create the user in Firebase Console > Authentication > Users first.
- */
 export const loginUser = async (email: string, pass: string) => {
   if (!auth) throw new Error("Firebase not initialized");
   try {
@@ -54,10 +49,6 @@ export const logoutUser = async () => {
   await signOut(auth);
 };
 
-/**
- * Subscribes to the Firebase Auth state.
- * Use this in App.tsx to know if a user is logged in or out.
- */
 export const subscribeToAuth = (callback: (user: User | null) => void) => {
   if (!auth) {
     callback(null);
@@ -68,9 +59,33 @@ export const subscribeToAuth = (callback: (user: User | null) => void) => {
 
 // --- DATABASE SERVICE ---
 
+/**
+ * Real-time subscription to keys.
+ * This fixes the "source update" issue by listening to changes continuously.
+ */
+export const subscribeToKeys = (callback: (keys: LicenseKey[]) => void, onError?: (error: any) => void) => {
+  if (!db) {
+    if (onError) onError(new Error("Database not connected"));
+    return () => {};
+  }
+
+  const q = query(collection(db, COLLECTION_NAME), orderBy('createdAt', 'desc'));
+  
+  // returns the unsubscribe function
+  return onSnapshot(q, (snapshot) => {
+    const keys = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as LicenseKey));
+    callback(keys);
+  }, (error) => {
+    if (onError) onError(error);
+    else console.error("Real-time sync error:", error);
+  });
+};
+
 export const getKeys = async (): Promise<LicenseKey[]> => {
   if (!db) throw new Error("Database not connected");
-  // Removed try-catch to allow UI to handle 'insufficient permissions' errors
   const q = query(collection(db, COLLECTION_NAME), orderBy('createdAt', 'desc'));
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => ({
@@ -111,12 +126,11 @@ export const createKey = async (params: GenerateKeyParams): Promise<LicenseKey> 
     expiresAt: expirationTime,
     status: KeyStatus.ACTIVE,
     maxDevices: 1,
-    boundDeviceId: null,
+    boundDeviceId: params.hwid || null, // Set manual HWID if provided
     lastUsed: null,
     ip: null
   };
 
-  // Removed try-catch
   const docRef = await addDoc(collection(db, COLLECTION_NAME), newKeyData);
   return { id: docRef.id, ...newKeyData } as LicenseKey;
 };
@@ -132,7 +146,6 @@ export const toggleKeyStatus = async (id: string, currentStatus: KeyStatus): Pro
   await updateDoc(keyRef, { status: newStatus });
 };
 
-// Hard Delete (Permanent)
 export const deleteKey = async (id: string): Promise<void> => {
   if (!db) throw new Error("Database not connected");
   await deleteDoc(doc(db, COLLECTION_NAME, id));
@@ -141,7 +154,8 @@ export const deleteKey = async (id: string): Promise<void> => {
 export const resetHwid = async (id: string): Promise<void> => {
   if (!db) throw new Error("Database not connected");
   const keyRef = doc(db, COLLECTION_NAME, id);
-  await updateDoc(keyRef, { boundDeviceId: null });
+  // Also clear the IP and Last Used to perform a "Session Reset"
+  await updateDoc(keyRef, { boundDeviceId: null, ip: null, lastUsed: null });
 };
 
 export const banKey = async (id: string): Promise<void> => {

@@ -3,7 +3,8 @@ import Login from './components/Login';
 import Sidebar from './components/Sidebar';
 import KeyManager from './components/KeyManager';
 import PythonIntegration from './components/PythonIntegration';
-import { Menu, X, Cpu, LayoutGrid, Code, LogOut, Clock, Loader2 } from 'lucide-react';
+import ApiSection from './components/ApiSection';
+import { Menu, X, Cpu, LayoutGrid, Code, LogOut, Clock, Loader2, Server } from 'lucide-react';
 import { subscribeToAuth, logoutUser } from './services/mockDb';
 
 const App: React.FC = () => {
@@ -101,6 +102,13 @@ const App: React.FC = () => {
                  <Code className="w-5 h-5" />
                  Integration
                </button>
+               <button 
+                 onClick={() => {setActiveTab('api'); setIsMobileMenuOpen(false);}} 
+                 className={`text-left text-xl uppercase tracking-wider p-4 border-l-4 transition-all flex items-center gap-3 ${activeTab === 'api' ? 'border-rog-red text-white bg-white/5' : 'border-transparent text-gray-500'}`}
+               >
+                 <Server className="w-5 h-5" />
+                 API Access
+               </button>
             </nav>
 
             <div className="mt-auto flex flex-col gap-4">
@@ -131,6 +139,7 @@ const App: React.FC = () => {
               <div key={activeTab} className="w-full animate-slide-up pb-10">
                   {activeTab === 'dashboard' && <KeyManager />}
                   {activeTab === 'python' && <PythonIntegration />}
+                  {activeTab === 'api' && <ApiSection />}
               </div>
            </div>
         </main>

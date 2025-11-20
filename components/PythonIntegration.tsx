@@ -1,49 +1,45 @@
-import React, { useState } from 'react';
-import { Check, Copy, Terminal, Code2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Check, Copy, Terminal, Code2, Server } from 'lucide-react';
 
-const STATIC_PYTHON_CODE = `import requests
-import hashlib
-import uuid
-import platform
+const PythonIntegration: React.FC = () => {
+  const [copied, setCopied] = useState(false);
+  const [baseUrl, setBaseUrl] = useState('https://your-api-endpoint.com');
+
+  useEffect(() => {
+    setBaseUrl(window.location.origin);
+  }, []);
+
+  const pythonCode = `import requests
 import sys
 import time
+import uuid
+import hashlib
+import platform
 
 # ==========================================
-# ROG ADMIN CLIENT LOADER CONFIGURATION
+# ROG ADMIN CLIENT LOADER
 # ==========================================
-API_URL = "https://your-server.com/api/validate"
+# REPLACE THIS with your actual deployed Cloud Function URL
+API_URL = "${baseUrl}/api/validate" 
 APP_NAME = "SECURE_APP_V1"
 
 def get_hwid():
     """
-    Generates a stable, unique Hardware ID for the current machine.
-    Combines MAC address, processor info, and OS details.
+    Generates a stable Hardware ID based on MAC address and Platform info.
+    hashed via SHA256 for security.
     """
-    try:
-        mac = uuid.getnode()
-        machine = platform.machine()
-        processor = platform.processor()
-        system = platform.system()
-        
-        # Create a raw unique string
-        raw_id = f"{mac}-{machine}-{processor}-{system}"
-        
-        # Hash it for security and standard length
-        return hashlib.sha256(raw_id.encode()).hexdigest()
-    except Exception as e:
-        print(f"[!] HWID Generation Error: {e}")
-        return None
+    mac = uuid.getnode()
+    system_info = platform.system() + platform.release() + platform.version()
+    raw_id = f"{mac}-{system_info}"
+    return hashlib.sha256(raw_id.encode()).hexdigest()
 
 def validate_key(license_key):
     """
-    Sends the License Key and HWID to the server for validation.
+    Sends Key + HWID to server for validation.
     """
     hwid = get_hwid()
-    if not hwid:
-        print("[-] Failed to generate Hardware ID.")
-        return False
-        
-    print(f"[*] Verifying Key for HWID: {hwid[:8]}...")
+    print(f"[*] Generating Session ID (HWID)...")
+    print(f"[*] Verifying Key: {license_key} ...")
     
     payload = {
         "key": license_key,
@@ -52,7 +48,6 @@ def validate_key(license_key):
     }
     
     try:
-        # In production, ensure your API uses HTTPS
         response = requests.post(API_URL, json=payload, timeout=15)
         
         if response.status_code == 200:
@@ -67,7 +62,7 @@ def validate_key(license_key):
                 return False
                 
         elif response.status_code == 403:
-            print("[-] ACCESS DENIED: Key is bound to another device.")
+            print("[-] ACCESS DENIED: " + response.json().get("message", "Forbidden"))
             return False
         elif response.status_code == 404:
             print("[-] ACCESS DENIED: Key not found.")
@@ -77,7 +72,8 @@ def validate_key(license_key):
             return False
             
     except requests.RequestException as e:
-        print(f"[-] Connection to server failed: {e}")
+        print(f"[-] Connection failed: {e}")
+        print("    (Ensure your API URL is correct and Server Code is deployed)")
         return False
 
 def main_program():
@@ -95,7 +91,7 @@ def main_program():
 
 if __name__ == "__main__":
     print("--- SECURITY LOADER ---")
-    user_key = input("Enter License Key: ").strip()
+    user_key = input("Enter License Key: ").strip().upper()
     
     if validate_key(user_key):
         main_program()
@@ -104,12 +100,8 @@ if __name__ == "__main__":
         time.sleep(2)
         sys.exit(1)`;
 
-const PythonIntegration: React.FC = () => {
-  const [code] = useState<string>(STATIC_PYTHON_CODE);
-  const [copied, setCopied] = useState(false);
-
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(code);
+    await navigator.clipboard.writeText(pythonCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -123,7 +115,7 @@ const PythonIntegration: React.FC = () => {
                <Code2 className="w-6 h-6 text-rog-red" />
                Client Loader Script
            </h2>
-           <p className="text-xs text-gray-400 mt-1 font-mono">PYTHON 3.X READY // COPY AND PASTE INTO YOUR PROJECT</p>
+           <p className="text-xs text-gray-400 mt-1 font-mono">PYTHON 3.X // HWID BINDING INCLUDED</p>
         </div>
 
         <button 
@@ -138,16 +130,22 @@ const PythonIntegration: React.FC = () => {
       {/* Terminal Window */}
       <div className="flex-1 bg-[#08080a] border border-gray-800 relative flex flex-col shadow-2xl font-mono rounded-sm overflow-hidden">
          {/* Terminal Top Bar */}
-         <div className="flex items-center px-4 py-2 bg-[#1a1a1d] border-b border-gray-800">
-            <Terminal className="w-3 h-3 text-gray-500 mr-2" />
-            <span className="text-xs text-gray-400 tracking-widest uppercase">loader.py</span>
+         <div className="flex items-center justify-between px-4 py-2 bg-[#1a1a1d] border-b border-gray-800">
+            <div className="flex items-center">
+                <Terminal className="w-3 h-3 text-gray-500 mr-2" />
+                <span className="text-xs text-gray-400 tracking-widest uppercase">loader.py</span>
+            </div>
+            <div className="flex items-center gap-2">
+                 <Server className="w-3 h-3 text-rog-red" />
+                 <span className="text-[10px] text-gray-500">API: {baseUrl}</span>
+            </div>
          </div>
          
          {/* Code Area */}
          <div className="flex-1 overflow-auto p-6 custom-scrollbar">
             <pre className="text-sm text-gray-300 leading-relaxed selection:bg-rog-red selection:text-white">
                 <code style={{ fontFamily: '"Share Tech Mono", monospace' }}>
-                    {code}
+                    {pythonCode}
                 </code>
             </pre>
          </div>

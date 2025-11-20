@@ -36,4 +36,5 @@ export interface GenerateKeyParams {
   durationValue: number;
   durationType: DurationType;
   note: string;
+  hwid?: string; // Added optional manual binding
 }

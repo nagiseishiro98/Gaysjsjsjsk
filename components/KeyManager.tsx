@@ -1,18 +1,23 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  Plus, Search, Trash2, Smartphone, Check,
+  Plus, Search, Trash2, Check,
   RefreshCw, X, Shield, Activity, Server, Zap, AlertTriangle,
-  Terminal, Hash, FileText,
-  Key, Monitor, Copy, Settings, Timer
+  Terminal, FileText, Globe, Monitor,
+  Key, Copy, Loader2, RotateCcw, Fingerprint, Clock
 } from 'lucide-react';
-import { getKeys, createKey, toggleKeyStatus, deleteKey, resetHwid, banKey } from '../services/mockDb';
+import { createKey, toggleKeyStatus, deleteKey, subscribeToKeys, resetHwid } from '../services/mockDb';
 import { LicenseKey, KeyStatus, DurationType } from '../types';
 
 const KeyManager: React.FC = () => {
   const [keys, setKeys] = useState<LicenseKey[]>([]);
   const [filter, setFilter] = useState('');
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Loading states for actions
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [resettingIds, setResettingIds] = useState<Set<string>>(new Set());
+  const [isSyncing, setIsSyncing] = useState(false);
   
   // Error State
   const [globalError, setGlobalError] = useState<string | null>(null);
@@ -22,6 +27,7 @@ const KeyManager: React.FC = () => {
   const [durationValue, setDurationValue] = useState(30);
   const [durationType, setDurationType] = useState<DurationType>(DurationType.DAYS);
   const [note, setNote] = useState('');
+  const [manualHwid, setManualHwid] = useState(''); // New Manual Binding State
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Fake Stats
@@ -30,29 +36,34 @@ const KeyManager: React.FC = () => {
   const handleDbError = (error: any) => {
     console.error("DB Error:", error);
     if (error.code === 'permission-denied') {
-      setGlobalError("ACCESS DENIED: Firestore Rules Blocked. Check Firebase Console > Firestore > Rules. Ensure 'match /keys/{id}' allows read/write if request.auth != null");
-    } else if (error.code === 'failed-precondition') {
-      setGlobalError("QUERY ERROR: Missing Index. Check browser console for the creation link.");
+      setGlobalError("ACCESS DENIED: Check Firestore Rules.");
     } else {
       setGlobalError(error.message || "Database Operation Failed");
     }
   };
 
-  const refreshKeys = useCallback(async () => {
+  // Real-time listener implementation
+  useEffect(() => {
     setIsLoading(true);
-    setGlobalError(null);
-    try {
-      const data = await getKeys();
-      setKeys(data);
-    } catch (error) {
-      handleDbError(error);
-    } finally {
-      setIsLoading(false);
-    }
+    const unsubscribe = subscribeToKeys(
+      (data) => {
+        setKeys(data);
+        setIsLoading(false);
+        setGlobalError(null);
+        setIsSyncing(false);
+      },
+      (error) => {
+        handleDbError(error);
+        setIsLoading(false);
+        setIsSyncing(false);
+      }
+    );
+
+    // Cleanup listener on unmount
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    refreshKeys();
     const interval = setInterval(() => {
       setServerLoad(prev => {
         const change = Math.floor(Math.random() * 10) - 5;
@@ -60,63 +71,79 @@ const KeyManager: React.FC = () => {
       });
     }, 2000);
     return () => clearInterval(interval);
-  }, [refreshKeys]);
+  }, []);
+
+  const handleForceSync = () => {
+    setIsSyncing(true);
+    setTimeout(() => setIsSyncing(false), 800);
+  };
 
   const handleGenerate = async (e?: React.FormEvent) => {
     if(e) e.preventDefault();
-    setIsLoading(true);
     setGlobalError(null);
     try {
-      await createKey({ prefix, durationValue, durationType, note });
+      await createKey({ 
+        prefix, 
+        durationValue, 
+        durationType, 
+        note, 
+        hwid: manualHwid.trim() || undefined 
+      });
       setNote('');
+      setManualHwid('');
       setCreateModalOpen(false);
-      await refreshKeys();
     } catch (error) {
       handleDbError(error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handleToggleStatus = async (id: string, currentStatus: KeyStatus) => {
       setGlobalError(null);
-      // Optimistic update
-      const updatedKeys = keys.map(k => 
-          k.id === id ? { ...k, status: k.status === KeyStatus.ACTIVE ? KeyStatus.PAUSED : KeyStatus.ACTIVE } : k
-      );
-      setKeys(updatedKeys);
-      
       try {
         await toggleKeyStatus(id, currentStatus);
-        await refreshKeys(); // Sync with DB
       } catch (error) {
         handleDbError(error);
-        // Revert on error if needed, but refreshKeys usually fixes it
-        await refreshKeys();
       }
+  };
+
+  const handleResetSession = async (id: string) => {
+    setGlobalError(null);
+    setResettingIds(prev => new Set(prev).add(id));
+    try {
+      await resetHwid(id); // This now clears IP and Last Used
+      setTimeout(() => {
+        setResettingIds(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }, 500);
+    } catch (error) {
+      handleDbError(error);
+      setResettingIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
   };
 
   const handleDelete = async (id: string) => {
       if(window.confirm("Permanently delete this key from Database?")) {
           setGlobalError(null);
+          setDeletingIds(prev => new Set(prev).add(id));
           try {
             await deleteKey(id);
-            await refreshKeys();
           } catch (error) {
             handleDbError(error);
+            setDeletingIds(prev => {
+                const next = new Set(prev);
+                next.delete(id);
+                return next;
+            });
           }
       }
   };
-
-  const handleResetHwid = async (id: string) => {
-      setGlobalError(null);
-      try {
-        await resetHwid(id);
-        await refreshKeys();
-      } catch (error) {
-        handleDbError(error);
-      }
-  }
 
   const handleCopy = async (text: string, id: string) => {
     try {
@@ -151,7 +178,7 @@ const KeyManager: React.FC = () => {
   );
 
   return (
-    <div className="flex flex-col h-full w-full gap-6 text-rog-text animate-slide-up pb-20 md:pb-0">
+    <div className="flex flex-col h-full w-full gap-6 text-rog-text animate-fade-in pb-20 md:pb-0">
       
       {/* Global Error Banner */}
       {globalError && (
@@ -168,16 +195,17 @@ const KeyManager: React.FC = () => {
         <div className="w-full flex flex-col gap-6 shrink-0">
           
           {/* Server Load Widget */}
-          <div className="bg-rog-panel border border-rog-border p-6 clip-angle tilt-panel relative overflow-hidden">
-             <div className="absolute top-0 right-0 p-2 opacity-20">
+          <div className="bg-rog-panel border border-rog-border p-6 clip-angle tilt-panel relative overflow-hidden group">
+             <div className="absolute top-0 right-0 p-2 opacity-20 group-hover:opacity-30 transition-opacity">
                <Activity className="w-16 h-16 text-rog-red" />
              </div>
              <div className="flex justify-between items-start">
                 <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <Server className="w-4 h-4" /> Database_Link
+                  <Server className="w-4 h-4" /> Live_Sync
                 </h3>
-                <div className="font-mono text-xs text-rog-red animate-pulse">
-                   CONNECTED
+                <div className="font-mono text-xs text-rog-red animate-pulse flex items-center gap-2">
+                   <div className="w-2 h-2 bg-rog-red rounded-full"></div>
+                   REALTIME
                 </div>
              </div>
              
@@ -188,34 +216,22 @@ const KeyManager: React.FC = () => {
              
              <div className="w-full h-1 bg-gray-800 overflow-hidden">
                <div 
-                  className="h-full bg-rog-red shadow-[0_0_10px_#ff003c] transition-all duration-1000"
-                  style={{ width: `${Math.random() * 100}%` }}
+                  className="h-full bg-rog-red shadow-[0_0_10px_#ff003c] transition-all duration-1000 ease-out"
+                  style={{ width: `${serverLoad}%` }}
                ></div>
              </div>
-          </div>
-
-          {/* System Tip */}
-          <div className="bg-rog-panel border border-rog-border p-4 clip-angle-top tilt-panel hidden sm:block">
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-              <AlertTriangle className="w-3 h-3 text-rog-red" /> FIRESTORE_DB
-            </h3>
-            <div className="border-l-2 border-rog-red pl-3 py-1">
-              <p className="text-xs text-gray-400 leading-relaxed">
-                DATA IS NOW PERSISTED IN CLOUD DATABASE. CHANGES ARE INSTANT AND GLOBAL.
-              </p>
-            </div>
           </div>
 
           {/* Initiate Action */}
           <button 
             onClick={() => setCreateModalOpen(true)}
-            className="group relative bg-rog-red hover:bg-red-600 transition-all h-32 w-full clip-angle flex items-center justify-center overflow-hidden tilt-panel active:scale-95"
+            className="group relative bg-rog-red hover:bg-red-600 transition-all duration-300 h-32 w-full clip-angle flex items-center justify-center overflow-hidden tilt-panel active:scale-[0.98]"
           >
              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 mix-blend-overlay"></div>
              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
              
-             <div className="relative z-10 flex flex-col items-center gap-2">
-               <Plus className="w-8 h-8 text-white group-hover:scale-125 transition-transform duration-300" />
+             <div className="relative z-10 flex flex-col items-center gap-2 group-hover:-translate-y-1 transition-transform duration-300">
+               <Plus className="w-8 h-8 text-white group-hover:scale-110 transition-transform duration-300" />
                <span className="text-2xl font-black italic tracking-widest text-white group-hover:text-glow transition-all">INITIATE</span>
                <span className="text-[10px] bg-black/30 px-2 py-0.5 rounded text-white/70 font-mono tracking-[0.2em]">NEW_KEY_GEN</span>
              </div>
@@ -223,7 +239,7 @@ const KeyManager: React.FC = () => {
 
         </div>
 
-        {/* Active Keys List - Vertical Layout Only */}
+        {/* Active Keys List */}
         <div className="flex-1 flex flex-col bg-rog-panel border border-rog-border relative clip-angle tilt-panel min-h-[400px]">
            {/* Header Actions */}
            <div className="p-4 border-b border-rog-border flex flex-col md:flex-row gap-4 justify-between items-start md:items-center bg-black/20">
@@ -238,29 +254,33 @@ const KeyManager: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2 w-full md:w-auto">
+                 <button 
+                    onClick={handleForceSync}
+                    title="Force Sync"
+                    className="p-2 bg-black/50 border border-gray-800 hover:border-rog-red hover:text-rog-red transition-all rounded-sm active:scale-95"
+                 >
+                    <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin text-rog-red' : 'text-gray-500'}`} />
+                 </button>
                  <div className="relative group flex-1 md:flex-none w-full md:w-48">
-                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500 group-focus-within:text-rog-red" />
+                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500 group-focus-within:text-rog-red transition-colors" />
                    <input 
                      value={filter}
                      onChange={(e) => setFilter(e.target.value)}
                      placeholder="SEARCH ID..."
-                     className="w-full bg-rog-black border border-gray-800 py-2 pl-8 pr-3 text-xs text-white focus:border-rog-red outline-none transition-colors font-mono"
+                     className="w-full bg-rog-black border border-gray-800 py-2 pl-8 pr-3 text-xs text-white focus:border-rog-red outline-none transition-all duration-300 font-mono"
                    />
                  </div>
-                 <button onClick={refreshKeys} className={`p-2 border border-gray-800 hover:bg-white/10 hover:text-white text-gray-500 transition-colors ${isLoading ? 'animate-spin' : ''}`}>
-                   <RefreshCw className="w-4 h-4" />
-                 </button>
               </div>
            </div>
 
-           {/* Scrollable List - Card Layout Only */}
+           {/* Scrollable List */}
            <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar relative">
               {filteredKeys.length === 0 ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center opacity-30">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center opacity-30 transition-opacity duration-500">
                      {isLoading ? (
                          <div className="flex flex-col items-center gap-2">
                              <RefreshCw className="w-8 h-8 animate-spin text-rog-red" />
-                             <span className="uppercase tracking-widest text-xs">Fetching Data...</span>
+                             <span className="uppercase tracking-widest text-xs">Syncing Database...</span>
                          </div>
                      ) : globalError ? (
                         <div className="flex flex-col items-center gap-2 text-rog-red">
@@ -279,12 +299,14 @@ const KeyManager: React.FC = () => {
                       const isExpired = k.expiresAt && Date.now() > k.expiresAt;
                       const statusColor = isExpired ? 'text-orange-500' : k.status === KeyStatus.ACTIVE ? 'text-white' : k.status === KeyStatus.PAUSED ? 'text-yellow-500' : 'text-gray-500';
                       const timeLeft = getFormattedTimeLeft(k.expiresAt);
+                      const isDeleting = deletingIds.has(k.id);
+                      const isResetting = resettingIds.has(k.id);
 
                       return (
                         <div 
                           key={k.id} 
-                          className="group bg-white/5 hover:bg-white/10 border border-transparent hover:border-rog-red transition-all duration-300 text-xs p-4 rounded-sm flex flex-col gap-3 relative"
-                          style={{ animationDelay: `${i * 50}ms` }}
+                          className={`group bg-white/5 hover:bg-white/10 border border-transparent hover:border-rog-red transition-all duration-300 ease-out text-xs p-4 rounded-sm flex flex-col gap-3 relative animate-slide-in-right hover:translate-x-1 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
+                          style={{ animationDelay: `${i * 50}ms`, animationFillMode: 'backwards' }}
                         >
                            {/* Top Row: Key, Copy & Delete */}
                            <div className="flex justify-between items-start">
@@ -308,10 +330,15 @@ const KeyManager: React.FC = () => {
                               
                               <button 
                                 onClick={() => handleDelete(k.id)}
-                                className="text-gray-600 hover:text-rog-red p-1 rounded hover:bg-rog-red/10 transition-colors"
+                                disabled={isDeleting}
+                                className="text-gray-600 hover:text-rog-red p-2 rounded hover:bg-rog-red/10 transition-colors opacity-0 group-hover:opacity-100 flex items-center justify-center"
                                 title="Delete Key"
                               >
-                                 <Trash2 className="w-4 h-4" />
+                                 {isDeleting ? (
+                                    <Loader2 className="w-4 h-4 animate-spin text-rog-red" />
+                                 ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                 )}
                               </button>
                            </div>
 
@@ -340,26 +367,40 @@ const KeyManager: React.FC = () => {
                                </div>
                            </div>
 
-                           {/* Bottom Row: HWID */}
-                           <div className="font-mono text-[10px] text-gray-500 truncate flex items-center gap-2 bg-black/30 p-2 rounded-sm justify-between">
-                              <div className="flex items-center gap-2 truncate">
-                                {k.boundDeviceId ? (
-                                    <>
-                                        <Smartphone className="w-3 h-3 shrink-0 text-gray-400" />
-                                        <span className="truncate opacity-50">{k.boundDeviceId}</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Monitor className="w-3 h-3 shrink-0 text-gray-600" />
-                                        <span className="italic opacity-30">NO_HARDWARE_BINDING</span>
-                                    </>
-                                )}
+                           {/* Bottom Row: Session Info & Reset */}
+                           <div className="flex items-center justify-between bg-black/30 p-2 rounded-sm group-hover:bg-black/50 transition-colors gap-2">
+                              
+                              {/* IP / Last Used Info */}
+                              <div className="flex flex-col flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono">
+                                      <Globe className="w-3 h-3 text-gray-600" />
+                                      <span className="truncate">{k.ip || 'NO_IP_LOGGED'}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-[10px] text-gray-500 font-mono mt-1">
+                                      <Monitor className="w-3 h-3 text-gray-600" />
+                                      <span className="truncate opacity-70" title={k.boundDeviceId || 'Not Bound'}>
+                                          {k.boundDeviceId ? `HWID: ${k.boundDeviceId.substring(0, 8)}...` : 'NO_BINDING'}
+                                      </span>
+                                  </div>
                               </div>
-                              {k.boundDeviceId && (
-                                  <button onClick={() => handleResetHwid(k.id)} className="text-rog-red hover:underline text-[9px]">
-                                      RESET
-                                  </button>
-                              )}
+
+                              {/* Reset Button */}
+                              <button 
+                                onClick={() => handleResetSession(k.id)}
+                                disabled={isResetting || (!k.boundDeviceId && !k.ip && !k.lastUsed)}
+                                className={`p-2 rounded border transition-all flex items-center justify-center
+                                    ${(!k.boundDeviceId && !k.ip && !k.lastUsed) 
+                                        ? 'border-gray-800 text-gray-700 cursor-not-allowed' 
+                                        : 'border-rog-border text-gray-400 hover:text-white hover:border-rog-red hover:bg-rog-red/10 active:scale-95 cursor-pointer'
+                                    }`}
+                                title="Reset HWID Binding & Session"
+                              >
+                                  {isResetting ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                      <RotateCcw className="w-4 h-4" />
+                                  )}
+                              </button>
                            </div>
                         </div>
                       );
@@ -369,109 +410,133 @@ const KeyManager: React.FC = () => {
         </div>
       </div>
 
-      {/* Create Modal - Terminal Style */}
+      {/* Create Modal - ROG ADMIN Terminal Style */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in p-4">
-          <div className="w-full max-w-lg bg-[#08080a] border border-rog-border relative overflow-hidden shadow-2xl">
-             {/* Top Bar */}
-             <div className="h-8 bg-[#151518] border-b border-rog-border flex items-center justify-between px-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-md bg-[#0a0a0c] border border-[#2a2a2e] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden animate-scale-in">
+             
+             {/* Terminal Header */}
+             <div className="h-8 bg-[#121214] border-b border-[#2a2a2e] flex items-center justify-between px-4">
                 <div className="flex items-center gap-2">
-                   <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                   <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                   <span className="ml-2 text-[10px] font-mono text-gray-500 uppercase">ADMIN_TERMINAL // GENERATE_KEY</span>
-                </div>
-                <button onClick={() => setCreateModalOpen(false)} className="text-gray-500 hover:text-white"><X className="w-4 h-4" /></button>
-             </div>
-
-             <div className="p-6 md:p-8">
-                <div className="flex items-center gap-3 mb-8 opacity-80">
-                   <Terminal className="w-8 h-8 text-rog-red" />
-                   <div>
-                      <h3 className="text-xl font-bold text-white tracking-wider">PROTOCOL: GENERATE</h3>
-                      <p className="text-[10px] text-rog-red font-mono">SYNC_TO_FIRESTORE_DB</p>
+                   <div className="flex gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-red-500/20 border border-red-500/50"></div>
+                      <div className="w-2 h-2 rounded-full bg-yellow-500/20 border border-yellow-500/50"></div>
+                      <div className="w-2 h-2 rounded-full bg-green-500/20 border border-green-500/50"></div>
                    </div>
                 </div>
-
-                <div className="space-y-6 font-mono text-sm">
-                    {/* Prefix Input */}
-                    <div className="flex flex-col gap-1">
-                       <label className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                          <Hash className="w-3 h-3" /> Identifier Prefix
-                       </label>
-                       <div className="flex items-center gap-2 text-white">
-                          <span className="text-gray-600">{'>'}</span>
-                          <span className="text-rog-red text-lg">[</span>
-                          <input 
-                            value={prefix} 
-                            onChange={e => setPrefix(e.target.value.toUpperCase())} 
-                            className="bg-transparent border-none outline-none text-white w-full uppercase placeholder-gray-700 focus:ring-0 p-0 text-lg font-bold"
-                            placeholder="PREFIX"
-                            maxLength={6}
-                          />
-                          <span className="text-rog-red text-lg">]</span>
-                       </div>
-                    </div>
-
-                    {/* Duration Input */}
-                    <div className="flex flex-col gap-2">
-                       <label className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                          <Timer className="w-3 h-3" /> Validity Period
-                       </label>
-                       <div className="grid grid-cols-3 gap-2">
-                          <div className="col-span-1 flex items-center gap-2">
-                             <span className="text-gray-600">{'>'}</span>
-                             <input 
-                               type="number" 
-                               value={durationValue} 
-                               onChange={e => setDurationValue(parseInt(e.target.value))} 
-                               className="bg-black/50 border-b border-gray-700 focus:border-rog-red text-white w-full p-2 text-center outline-none" 
-                             />
-                          </div>
-                          <div className="col-span-2 flex bg-black/50 border border-gray-800 p-1 rounded-sm">
-                             {[DurationType.DAYS, DurationType.HOURS, DurationType.YEARS].map((type) => (
-                                <button
-                                  key={type}
-                                  onClick={() => setDurationType(type)}
-                                  className={`flex-1 text-[10px] font-bold uppercase py-1.5 transition-all ${durationType === type ? 'bg-rog-red text-white shadow-[0_0_10px_#ff003c]' : 'text-gray-600 hover:text-white'}`}
-                                >
-                                   {type}
-                                </button>
-                             ))}
-                          </div>
-                       </div>
-                    </div>
-
-                    {/* Note Input */}
-                    <div className="flex flex-col gap-1">
-                       <label className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                          <FileText className="w-3 h-3" /> Client Ref
-                       </label>
-                       <div className="flex items-center gap-2 text-white">
-                          <span className="text-gray-600">{'>'}</span>
-                          <input 
-                            value={note} 
-                            onChange={e => setNote(e.target.value)} 
-                            className="bg-transparent border-b border-gray-700 focus:border-rog-red outline-none text-gray-300 w-full p-1 text-sm"
-                            placeholder="Enter note..."
-                          />
-                       </div>
-                    </div>
+                <div className="text-[10px] font-mono text-[#444] uppercase tracking-widest absolute left-1/2 -translate-x-1/2">
+                    ADMIN_TERMINAL // GENERATE_KEY
                 </div>
-
-                <button 
-                   onClick={handleGenerate}
-                   disabled={isLoading}
-                   className="w-full mt-8 bg-white text-black hover:bg-rog-red hover:text-white font-bold py-4 uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 group relative overflow-hidden disabled:opacity-50"
-                >
-                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-                   {isLoading ? <RefreshCw className="w-4 h-4 animate-spin"/> : <Zap className="w-4 h-4" />}
-                   <span>{isLoading ? 'UPLOADING...' : 'Execute'}</span>
+                <button onClick={() => setCreateModalOpen(false)} className="text-[#444] hover:text-white transition-colors">
+                    <X className="w-3 h-3" />
                 </button>
              </div>
              
-             {/* Decorative footer line */}
-             <div className="h-1 w-full bg-gradient-to-r from-rog-red/50 via-transparent to-rog-red/50"></div>
+             <form onSubmit={handleGenerate} className="p-8 space-y-8 font-mono">
+                
+                {/* Protocol Title */}
+                <div className="relative">
+                   <div className="absolute -left-8 top-0 bottom-0 w-1 bg-rog-red"></div>
+                   <div className="flex items-center gap-2 text-xl font-bold text-white tracking-widest leading-none mb-1">
+                      <span className="text-rog-red text-2xl">&gt;_</span> PROTOCOL: GENERATE
+                   </div>
+                   <div className="text-[9px] text-rog-red font-bold tracking-[0.3em] opacity-70 ml-8">
+                      SYNC_TO_FIRESTORE_DB
+                   </div>
+                </div>
+
+                <div className="space-y-6">
+                   
+                   {/* Identifier Prefix */}
+                   <div className="space-y-2">
+                      <label className="text-[10px] text-[#666] uppercase tracking-[0.2em] font-bold"># IDENTIFIER PREFIX</label>
+                      <div className="flex items-center text-lg text-white group">
+                         <span className="text-[#333] mr-3 font-bold">&gt;</span>
+                         <span className="text-rog-red font-bold text-xl mr-2 group-focus-within:text-white transition-colors">[</span>
+                         <input 
+                           value={prefix} 
+                           onChange={e => setPrefix(e.target.value.toUpperCase())}
+                           className="bg-transparent border-none outline-none w-full font-bold tracking-widest uppercase placeholder-[#333] text-white"
+                           placeholder="PREFIX"
+                         />
+                         <span className="text-rog-red font-bold text-xl ml-2 group-focus-within:text-white transition-colors">]</span>
+                      </div>
+                   </div>
+
+                   {/* Validity Period */}
+                   <div className="space-y-2">
+                      <label className="text-[10px] text-[#666] uppercase tracking-[0.2em] font-bold flex items-center gap-2">
+                         <Clock className="w-3 h-3" /> VALIDITY PERIOD
+                      </label>
+                      <div className="flex items-center gap-4">
+                         <span className="text-[#333] font-bold">&gt;</span>
+                         <div className="flex-1 flex items-center gap-3">
+                             <input 
+                               type="number"
+                               value={durationValue}
+                               onChange={e => setDurationValue(parseInt(e.target.value))}
+                               className="bg-[#121214] border border-[#2a2a2e] w-20 py-2 px-2 text-center text-white outline-none focus:border-rog-red font-bold text-lg rounded-sm"
+                             />
+                             <div className="flex-1 flex bg-[#121214] border border-[#2a2a2e] rounded-sm p-1">
+                                {Object.values(DurationType).filter(t => t !== 'MINUTES').map(t => (
+                                   <button
+                                     key={t}
+                                     type="button"
+                                     onClick={() => setDurationType(t)}
+                                     className={`flex-1 py-1 text-[10px] font-bold tracking-wider transition-all uppercase ${durationType === t ? 'bg-rog-red text-white shadow-[0_0_15px_rgba(255,0,60,0.4)]' : 'text-[#666] hover:text-[#aaa]'}`}
+                                   >
+                                     {t}
+                                   </button>
+                                ))}
+                             </div>
+                         </div>
+                      </div>
+                   </div>
+
+                   {/* HWID Binding */}
+                   <div className="space-y-2">
+                      <label className="text-[10px] text-[#666] uppercase tracking-[0.2em] font-bold flex items-center justify-between">
+                         <span className="flex items-center gap-2"><Fingerprint className="w-3 h-3"/> HWID BINDING</span>
+                         <span className="text-rog-red text-[9px] bg-rog-red/10 px-1 rounded">OPTIONAL</span>
+                      </label>
+                      <div className="flex items-center text-sm text-white border-b border-[#2a2a2e] focus-within:border-rog-red transition-colors pb-2">
+                         <span className="text-[#333] mr-3 font-bold">&gt;</span>
+                         <input 
+                            value={manualHwid}
+                            onChange={e => setManualHwid(e.target.value)}
+                            className="bg-transparent border-none outline-none w-full tracking-wider placeholder-[#333] font-mono text-xs"
+                            placeholder="ENTER_MANUAL_HWID_OR_LEAVE_EMPTY"
+                         />
+                      </div>
+                   </div>
+
+                   {/* Client Ref */}
+                   <div className="space-y-2">
+                      <label className="text-[10px] text-[#666] uppercase tracking-[0.2em] font-bold flex items-center gap-2">
+                         <FileText className="w-3 h-3" /> CLIENT REF
+                      </label>
+                      <div className="flex items-center text-sm text-white border-b border-[#2a2a2e] focus-within:border-rog-red transition-colors pb-2">
+                         <span className="text-[#333] mr-3 font-bold">&gt;</span>
+                         <input 
+                            value={note}
+                            onChange={e => setNote(e.target.value)}
+                            className="bg-transparent border-none outline-none w-full tracking-wider placeholder-[#333] font-mono text-xs"
+                            placeholder="Enter note..."
+                         />
+                      </div>
+                   </div>
+
+                </div>
+
+                {/* Execute Button */}
+                <button 
+                   type="submit"
+                   className="w-full bg-white hover:bg-[#e0e0e0] text-black font-black py-4 uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-3 group active:scale-[0.98] clip-angle-top mt-8 shadow-[0_0_30px_rgba(255,255,255,0.1)] hover:shadow-[0_0_50px_rgba(255,255,255,0.2)]"
+                >
+                   <Zap className="w-5 h-5 text-black fill-black" />
+                   EXECUTE
+                </button>
+             </form>
           </div>
         </div>
       )}

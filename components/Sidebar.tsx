@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid, Code, LogOut, Cpu, Signal, Clock } from 'lucide-react';
+import { LayoutGrid, Code, LogOut, Cpu, Signal, Clock, Server } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -18,6 +18,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onLogout }) =
   const navItems = [
     { id: 'dashboard', label: 'DASHBOARD', icon: LayoutGrid },
     { id: 'python', label: 'INTEGRATION', icon: Code },
+    { id: 'api', label: 'API ACCESS', icon: Server },
   ];
 
   return (
