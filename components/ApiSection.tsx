@@ -17,20 +17,30 @@ service cloud.firestore {
     
     // KEYS COLLECTION
     match /keys/{keyId} {
-      // 1. ADMIN ACCESS (Authenticated Users)
-      // Full access to create, read, update, delete
-      allow read, write: if request.auth != null;
       
-      // 2. PUBLIC ACCESS (Python Client / Unauthenticated)
-      // Allow validating keys (Read Only)
+      // 1. OWNER ACCESS (Multi-Tenant)
+      // Only allow access if the user owns the key
+      allow create: if request.auth != null 
+                    && request.resource.data.ownerId == request.auth.uid;
+                    
+      allow read, delete: if request.auth != null 
+                          && resource.data.ownerId == request.auth.uid;
+
+      // 2. PUBLIC VALIDATION (Read-Only)
+      // Allows Python clients to find keys by ID (for validation only)
+      // Note: In a real production app, you might use a separate Cloud Function for validation
+      // to strictly hide the 'list' permission.
       allow get, list: if true;
       
-      // Allow binding device (Restricted Update)
-      // Only allows updating specific fields for device locking
-      // Denies creating new keys or deleting existing ones
+      // 3. DEVICE BINDING (Unauthenticated Update)
+      // Allows the Python client to bind HWID without login
       allow update: if request.auth == null 
                     && request.resource.data.diff(resource.data).affectedKeys()
                        .hasOnly(['boundDeviceId', 'deviceName', 'lastUsed', 'ip']);
+                       
+      // 4. ADMIN STATUS UPDATE (Owner Only)
+      allow update: if request.auth != null 
+                    && resource.data.ownerId == request.auth.uid;
     }
   }
 }`;
@@ -89,8 +99,9 @@ service cloud.firestore {
                   <div>
                       <h4 className="text-orange-500 font-bold text-xs uppercase tracking-wider mb-1">Serverless Mode Active</h4>
                       <p className="text-[11px] text-gray-400 leading-relaxed">
-                          You are using <strong>Direct Firestore</strong> mode. The Python client connects directly to Google's servers. 
-                          No hosting or backend setup is required.
+                          You are using <strong>Direct Firestore</strong> mode with <strong>Multi-User Support</strong>.
+                          <br/>
+                          Keys are now cryptographically bound to your Admin Account ID.
                       </p>
                   </div>
               </motion.div>

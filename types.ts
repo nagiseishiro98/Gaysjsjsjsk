@@ -25,6 +25,7 @@ export interface LicenseKey {
   deviceName: string | null; // User's PC Name (e.g., "Desktop-USER")
   lastUsed: number | null;
   ip: string | null;
+  ownerId: string; // Linked to Firebase Auth UID
 }
 
 export interface User {

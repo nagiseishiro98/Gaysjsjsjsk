@@ -1,6 +1,6 @@
 import { LicenseKey, KeyStatus, GenerateKeyParams, DurationType } from '../types';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, Timestamp, onSnapshot, where } from 'firebase/firestore';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
 
 // ==========================================================================
@@ -61,7 +61,7 @@ export const subscribeToAuth = (callback: (user: User | null) => void) => {
 
 /**
  * Real-time subscription to keys.
- * This fixes the "source update" issue by listening to changes continuously.
+ * Now filters by the authenticated user's ID (Multi-tenant).
  */
 export const subscribeToKeys = (callback: (keys: LicenseKey[]) => void, onError?: (error: any) => void) => {
   if (!db) {
@@ -69,7 +69,14 @@ export const subscribeToKeys = (callback: (keys: LicenseKey[]) => void, onError?
     return () => {};
   }
 
-  const q = query(collection(db, COLLECTION_NAME), orderBy('createdAt', 'desc'));
+  if (!auth.currentUser) {
+    if (onError) onError(new Error("User not authenticated"));
+    return () => {};
+  }
+
+  // Filter by ownerId to ensure data isolation
+  // We rely on client-side sorting to avoid complex composite index requirements during setup
+  const q = query(collection(db, COLLECTION_NAME), where('ownerId', '==', auth.currentUser.uid));
   
   // returns the unsubscribe function
   return onSnapshot(q, (snapshot) => {
@@ -77,6 +84,10 @@ export const subscribeToKeys = (callback: (keys: LicenseKey[]) => void, onError?
       id: doc.id,
       ...doc.data()
     } as LicenseKey));
+    
+    // Sort manually by createdAt desc
+    keys.sort((a, b) => b.createdAt - a.createdAt);
+    
     callback(keys);
   }, (error) => {
     if (onError) onError(error);
@@ -86,12 +97,17 @@ export const subscribeToKeys = (callback: (keys: LicenseKey[]) => void, onError?
 
 export const getKeys = async (): Promise<LicenseKey[]> => {
   if (!db) throw new Error("Database not connected");
-  const q = query(collection(db, COLLECTION_NAME), orderBy('createdAt', 'desc'));
+  if (!auth.currentUser) throw new Error("User not authenticated");
+
+  const q = query(collection(db, COLLECTION_NAME), where('ownerId', '==', auth.currentUser.uid));
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({
+  
+  const keys = querySnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data()
   } as LicenseKey));
+
+  return keys.sort((a, b) => b.createdAt - a.createdAt);
 };
 
 export const generateUniqueKey = (prefix: string = 'KEY'): string => {
@@ -101,6 +117,8 @@ export const generateUniqueKey = (prefix: string = 'KEY'): string => {
 
 export const createKey = async (params: GenerateKeyParams): Promise<LicenseKey> => {
   if (!db) throw new Error("Database not connected");
+  if (!auth.currentUser) throw new Error("User not authenticated");
+  
   const now = Date.now();
   let expirationTime = 0;
 
@@ -129,7 +147,8 @@ export const createKey = async (params: GenerateKeyParams): Promise<LicenseKey> 
     boundDeviceId: params.hwid || null, // Set manual HWID if provided
     deviceName: null, // Initialize as null
     lastUsed: null,
-    ip: null
+    ip: null,
+    ownerId: auth.currentUser.uid // Bind key to current admin
   };
 
   const docRef = await addDoc(collection(db, COLLECTION_NAME), newKeyData);
