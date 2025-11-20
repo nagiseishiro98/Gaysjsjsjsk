@@ -7,27 +7,34 @@ import { Menu, X, Cpu, LayoutGrid, Code, LogOut, Clock, Server, Activity } from 
 import { subscribeToAuth, logoutUser } from './services/mockDb';
 import { AnimatePresence, motion } from 'framer-motion';
 
+// Optimization: Isolated Clock Component prevents main App re-renders
+const HeaderClock = () => {
+  const [time, setTime] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+     <div className="hidden md:flex items-center gap-2 text-xs font-mono text-gray-500 border-r border-gray-800 pr-4 mr-2">
+        <Clock className="w-3 h-3" />
+        {time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second: '2-digit'})}
+    </div>
+  );
+};
+
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     const unsubscribe = subscribeToAuth((user) => {
       setIsAuthenticated(!!user);
       setIsLoading(false);
     });
-
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => {
-      unsubscribe();
-      clearInterval(timer);
-    };
+    return () => unsubscribe();
   }, []);
 
   const handleLogout = async () => {
@@ -70,8 +77,8 @@ const App: React.FC = () => {
               <span className="italic">ROG<span className="text-rog-red">ADMIN</span></span>
            </div>
 
-           {/* Desktop Nav Tabs */}
-           <div className="hidden md:flex items-center gap-1 bg-black/50 p-1 rounded border border-gray-800 absolute left-1/2 -translate-x-1/2 backdrop-blur-sm">
+           {/* Desktop Nav Tabs - Only visible on Large Screens (lg) to prevent overlap on Tablets */}
+           <div className="hidden lg:flex items-center gap-1 bg-black/50 p-1 rounded border border-gray-800 absolute left-1/2 -translate-x-1/2 backdrop-blur-sm">
               {[
                 { id: 'dashboard', label: 'KEYS', icon: LayoutGrid },
                 { id: 'python', label: 'INTEGRATION', icon: Code },
@@ -101,21 +108,19 @@ const App: React.FC = () => {
            </div>
 
            <div className="flex items-center gap-4">
-              <div className="hidden md:flex items-center gap-2 text-xs font-mono text-gray-500 border-r border-gray-800 pr-4 mr-2">
-                  <Clock className="w-3 h-3" />
-                  {currentTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second: '2-digit'})}
-              </div>
+              <HeaderClock />
               
               <button 
                 onClick={handleLogout}
-                className="hidden md:flex text-gray-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest items-center gap-2 hover:bg-white/5 p-2 rounded"
+                className="hidden lg:flex text-gray-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest items-center gap-2 hover:bg-white/5 p-2 rounded"
               >
                  <LogOut className="w-4 h-4" />
               </button>
 
+              {/* Hamburger - Visible on Mobile AND Tablet (md) now */}
               <button 
                 onClick={() => setIsMobileMenuOpen(true)} 
-                className="md:hidden text-white hover:text-rog-red active:scale-90 transition-transform p-2"
+                className="lg:hidden text-white hover:text-rog-red active:scale-90 transition-transform p-2"
               >
                   <Menu className="w-6 h-6" />
               </button>
@@ -130,7 +135,7 @@ const App: React.FC = () => {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="absolute inset-0 z-[100] bg-[#050505]/95 backdrop-blur-xl flex flex-col p-6 md:hidden"
+              className="absolute inset-0 z-[100] bg-[#050505]/95 backdrop-blur-xl flex flex-col p-6 lg:hidden"
            >
               <div className="flex justify-between items-center mb-8">
                  <div className="font-bold text-lg text-rog-red tracking-widest flex items-center gap-2">

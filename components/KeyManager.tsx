@@ -55,7 +55,6 @@ const KeyRow = React.memo(({ k, isDeleting, isResetting, isCopied, onToggle, onR
 
     return (
         <motion.div 
-            layout="position"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: isDeleting ? 0.5 : 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
@@ -324,7 +323,7 @@ const KeyManager: React.FC = () => {
       </AnimatePresence>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 gap-3 md:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-6">
           <motion.div 
             initial={{ opacity: 0, y: 20, rotateX: 15 }} 
             animate={{ opacity: 1, y: 0, rotateX: 0 }} 
@@ -342,10 +341,10 @@ const KeyManager: React.FC = () => {
       {/* Action Bar */}
       <motion.div 
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
-        className="flex flex-col xl:flex-row gap-3 bg-[#0e0e10] border border-[#222] p-2 rounded relative z-30"
+        className="flex flex-col lg:flex-row gap-3 bg-[#0e0e10] border border-[#222] p-2 rounded relative z-30"
       >
           {/* Search */}
-          <div className="relative flex-1 h-10">
+          <div className="relative flex-1 h-10 min-w-0">
              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
              <input 
                value={filter}
@@ -358,12 +357,12 @@ const KeyManager: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2">
              
              {/* Filter Pills */}
-             <div className="flex bg-[#151518] border border-[#2a2a2e] rounded p-1 h-10 gap-1">
+             <div className="flex bg-[#151518] border border-[#2a2a2e] rounded p-1 min-h-[40px] gap-1 overflow-x-auto no-scrollbar max-w-full">
                 {(['ALL', KeyStatus.ACTIVE, KeyStatus.BANNED] as const).map(s => (
                     <button
                         key={s}
                         onClick={() => setStatusFilter(s)}
-                        className={`px-4 rounded-sm text-[10px] font-bold uppercase tracking-wider transition-all relative overflow-hidden flex items-center justify-center
+                        className={`px-4 rounded-sm text-[10px] font-bold uppercase tracking-wider transition-all relative overflow-hidden flex items-center justify-center whitespace-nowrap flex-shrink-0 h-full
                             ${statusFilter === s 
                                ? 'bg-white text-black shadow-[0_0_10px_rgba(255,255,255,0.2)]' 
                                : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}
@@ -374,10 +373,10 @@ const KeyManager: React.FC = () => {
                 ))}
              </div>
 
-             <div className="w-px h-6 bg-gray-800 mx-1 hidden xl:block"></div>
+             <div className="w-px h-6 bg-gray-800 mx-1 hidden lg:block"></div>
 
              {/* Custom Sorting Dropdown */}
-             <div className="relative h-10 min-w-[140px]" ref={sortDropdownRef}>
+             <div className="relative h-10 min-w-[140px] flex-1 sm:flex-none" ref={sortDropdownRef}>
                 <button 
                   onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
                   className={`w-full h-full bg-[#151518] border ${isSortDropdownOpen ? 'border-rog-red text-white' : 'border-[#2a2a2e] text-gray-400'} hover:text-white hover:border-gray-500 rounded px-3 flex items-center justify-between transition-all text-[10px] font-bold uppercase tracking-wider group active:scale-95`}
@@ -440,7 +439,7 @@ const KeyManager: React.FC = () => {
              {/* Generate Button */}
              <button 
                 onClick={() => setCreateModalOpen(true)}
-                className="h-10 px-5 bg-rog-red hover:bg-red-600 text-white rounded font-bold uppercase tracking-wider text-xs flex items-center justify-center transition-colors shadow-[0_0_15px_rgba(255,0,60,0.3)] gap-2 hover:scale-105 active:scale-95 ml-2"
+                className="h-10 px-5 bg-rog-red hover:bg-red-600 text-white rounded font-bold uppercase tracking-wider text-xs flex items-center justify-center transition-colors shadow-[0_0_15px_rgba(255,0,60,0.3)] gap-2 hover:scale-105 active:scale-95 ml-2 flex-1 sm:flex-none"
              >
                 <Plus className="w-4 h-4" /> <span className="">Create</span>
              </button>
