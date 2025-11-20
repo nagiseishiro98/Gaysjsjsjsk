@@ -127,6 +127,7 @@ export const createKey = async (params: GenerateKeyParams): Promise<LicenseKey> 
     status: KeyStatus.ACTIVE,
     maxDevices: 1,
     boundDeviceId: params.hwid || null, // Set manual HWID if provided
+    deviceName: null, // Initialize as null
     lastUsed: null,
     ip: null
   };
@@ -154,8 +155,8 @@ export const deleteKey = async (id: string): Promise<void> => {
 export const resetHwid = async (id: string): Promise<void> => {
   if (!db) throw new Error("Database not connected");
   const keyRef = doc(db, COLLECTION_NAME, id);
-  // Also clear the IP and Last Used to perform a "Session Reset"
-  await updateDoc(keyRef, { boundDeviceId: null, ip: null, lastUsed: null });
+  // Also clear the IP, DeviceName and Last Used to perform a "Session Reset"
+  await updateDoc(keyRef, { boundDeviceId: null, deviceName: null, ip: null, lastUsed: null });
 };
 
 export const banKey = async (id: string): Promise<void> => {

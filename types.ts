@@ -22,6 +22,7 @@ export interface LicenseKey {
   status: KeyStatus;
   maxDevices: number;
   boundDeviceId: string | null; // Hardware ID (HWID)
+  deviceName: string | null; // User's PC Name (e.g., "Desktop-USER")
   lastUsed: number | null;
   ip: string | null;
 }

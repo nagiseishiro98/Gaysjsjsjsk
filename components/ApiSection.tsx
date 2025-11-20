@@ -24,10 +24,10 @@ service cloud.firestore {
       allow list: if true;
       allow get: if true;
       
-      // Allow updating ONLY the 'boundDeviceId' and 'lastUsed' fields
-      // This allows the 1-Device Lock mechanism to work without a backend
+      // Allow updating binding info securely
+      // Added 'deviceName' so the client can report its name
       allow update: if request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['boundDeviceId', 'lastUsed', 'ip', 'usageCount']);
+        .hasOnly(['boundDeviceId', 'lastUsed', 'ip', 'usageCount', 'deviceName']);
     }
   }
 }`;

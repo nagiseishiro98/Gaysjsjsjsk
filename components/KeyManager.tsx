@@ -3,7 +3,7 @@ import {
   Plus, Search, Trash2, Check,
   RefreshCw, X, Shield, Activity, Server, Zap, AlertTriangle,
   FileText, Globe, Monitor,
-  Key, Copy, Loader2, RotateCcw, Fingerprint, Clock
+  Key, Copy, Loader2, RotateCcw, Fingerprint, Clock, Laptop
 } from 'lucide-react';
 import { createKey, toggleKeyStatus, deleteKey, subscribeToKeys, resetHwid } from '../services/mockDb';
 import { LicenseKey, KeyStatus, DurationType } from '../types';
@@ -202,7 +202,7 @@ const KeyManager: React.FC = () => {
                   return (
                     <div key={k.id} className={`bg-[#0e0e10] border border-[#222] p-4 rounded-sm relative group ${isDeleting ? 'opacity-50' : 'hover:border-gray-700'} transition-colors`}>
                        
-                       <div className="flex flex-col md:flex-row md:items-center gap-4">
+                       <div className="flex flex-col lg:flex-row lg:items-center gap-4">
                            
                            {/* Main Info */}
                            <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -221,7 +221,7 @@ const KeyManager: React.FC = () => {
                            </div>
 
                            {/* Status & Controls Container */}
-                           <div className="flex items-center justify-between md:justify-end gap-2 md:gap-4 w-full md:w-auto border-t md:border-t-0 border-[#222] pt-3 md:pt-0">
+                           <div className="flex flex-wrap lg:flex-nowrap items-center justify-between lg:justify-end gap-3 lg:gap-6 w-full lg:w-auto border-t lg:border-t-0 border-[#222] pt-3 lg:pt-0">
                                
                                {/* Badges */}
                                <div className="flex items-center gap-2">
@@ -242,31 +242,42 @@ const KeyManager: React.FC = () => {
                                    </div>
                                </div>
 
-                               {/* Device Info Compact */}
-                               <div className="flex items-center gap-2">
-                                   <div 
-                                      className={`px-3 py-1.5 rounded border text-[10px] font-mono flex items-center gap-2 max-w-[120px] truncate
-                                      ${k.boundDeviceId ? 'border-rog-red/20 bg-rog-red/5 text-gray-300' : 'border-gray-800 bg-black text-gray-600'}`}
-                                      title={k.boundDeviceId || 'Unbound'}
-                                   >
-                                       <Monitor className="w-3 h-3 shrink-0" />
-                                       <span className="truncate">{k.boundDeviceId ? 'BOUND' : 'OPEN'}</span>
-                                   </div>
+                               {/* Device Info - ENHANCED */}
+                               <div className="flex-1 lg:flex-none flex items-center justify-end gap-4">
+                                   {k.boundDeviceId ? (
+                                      <div className="flex flex-col items-end min-w-[140px]">
+                                         <div className="flex items-center gap-2 text-rog-red bg-rog-red/10 px-2 py-1 rounded border border-rog-red/20">
+                                             <Laptop className="w-3 h-3" />
+                                             <span className="text-[10px] font-bold uppercase max-w-[120px] truncate" title={k.deviceName || 'Unknown Device'}>
+                                                {k.deviceName || 'UNKNOWN DEVICE'}
+                                             </span>
+                                         </div>
+                                         <div className="text-[9px] font-mono text-gray-600 mt-1 flex items-center gap-1" title={k.boundDeviceId}>
+                                             <Fingerprint className="w-2 h-2"/>
+                                             <span className="truncate max-w-[100px]">{k.boundDeviceId}</span>
+                                         </div>
+                                      </div>
+                                   ) : (
+                                      <div className="px-3 py-1.5 rounded border border-dashed border-gray-800 text-gray-600 text-[10px] font-mono uppercase tracking-wider flex items-center gap-2 opacity-50">
+                                          <Monitor className="w-3 h-3" />
+                                          Waiting for Login
+                                      </div>
+                                   )}
+                               </div>
 
-                                    <div className="h-4 w-px bg-gray-800 mx-1 hidden md:block"></div>
+                               <div className="h-6 w-px bg-gray-800 hidden lg:block"></div>
 
-                                    {/* Actions */}
-                                    <div className="flex items-center gap-1">
-                                        <button onClick={() => handleResetSession(k.id)} disabled={!k.boundDeviceId || isResetting} className="p-2 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors disabled:opacity-30" title="Reset HWID">
-                                            {isResetting ? <Loader2 className="w-4 h-4 animate-spin"/> : <RotateCcw className="w-4 h-4"/>}
-                                        </button>
-                                        <button onClick={() => handleCopy(k.key, k.id)} className="p-2 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors" title="Copy Key">
-                                            {copiedId === k.id ? <Check className="w-4 h-4 text-green-500"/> : <Copy className="w-4 h-4"/>}
-                                        </button>
-                                        <button onClick={() => handleDelete(k.id)} className="p-2 hover:bg-rog-red/20 rounded text-gray-400 hover:text-rog-red transition-colors" title="Delete">
-                                            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin"/> : <Trash2 className="w-4 h-4"/>}
-                                        </button>
-                                    </div>
+                               {/* Actions */}
+                               <div className="flex items-center gap-1">
+                                   <button onClick={() => handleResetSession(k.id)} disabled={!k.boundDeviceId || isResetting} className="p-2 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors disabled:opacity-30" title="Reset Session (Unbind)">
+                                       {isResetting ? <Loader2 className="w-4 h-4 animate-spin"/> : <RotateCcw className="w-4 h-4"/>}
+                                   </button>
+                                   <button onClick={() => handleCopy(k.key, k.id)} className="p-2 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors" title="Copy Key">
+                                       {copiedId === k.id ? <Check className="w-4 h-4 text-green-500"/> : <Copy className="w-4 h-4"/>}
+                                   </button>
+                                   <button onClick={() => handleDelete(k.id)} className="p-2 hover:bg-rog-red/20 rounded text-gray-400 hover:text-rog-red transition-colors" title="Delete">
+                                       {isDeleting ? <Loader2 className="w-4 h-4 animate-spin"/> : <Trash2 className="w-4 h-4"/>}
+                                   </button>
                                </div>
                            </div>
                        </div>
@@ -324,14 +335,14 @@ const KeyManager: React.FC = () => {
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Hardware ID (Optional)</label>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Hardware ID (Manual Binding)</label>
                         <div className="relative">
                             <Fingerprint className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
                             <input 
                             value={manualHwid}
                             onChange={e => setManualHwid(e.target.value)}
                             className="w-full bg-black border border-[#333] p-3 pl-10 text-white font-mono text-xs rounded focus:border-rog-red outline-none"
-                            placeholder="Manual HWID Binding"
+                            placeholder="Optional: Pre-bind to HWID"
                             />
                         </div>
                     </div>

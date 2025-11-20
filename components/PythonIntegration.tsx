@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Check, Copy, Code2, RefreshCw, Globe, ArrowRight, Database } from 'lucide-react';
+import { Check, Copy, Code2, RefreshCw, Globe, ArrowRight, Database, Terminal } from 'lucide-react';
 
 const PythonIntegration: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
+  const [activeTab, setActiveTab] = useState<'python' | 'bash'>('python');
   
   // Config for Python Script
   const PROJECT_ID = "key-generator-93f89"; 
@@ -18,6 +19,7 @@ import json
 import time
 import os
 import subprocess
+import socket
 from datetime import datetime
 
 # ====================================================
@@ -33,55 +35,40 @@ def get_hwid():
     """
     Generates a stable Hardware ID.
     Uses a 'hwid.lock' file to guarantee the ID never changes for this installation,
-    even if system commands fail or return dynamic values (common on Termux/Android).
+    even if system commands fail or return dynamic values.
     """
     LOCK_FILE = "hwid.lock"
     
-    # 1. Return existing locked ID if available
     if os.path.exists(LOCK_FILE):
         try:
             with open(LOCK_FILE, "r") as f:
                 saved_id = f.read().strip()
-                if saved_id:
-                    return saved_id
-        except:
-            pass # If read fails, regenerate
+                if saved_id: return saved_id
+        except: pass
 
-    # 2. Generate new ID (System based or Random)
     system = platform.system()
     raw_id = None
     
     try:
         if system == "Windows":
-            # Reliable Windows UUID
             raw_id = subprocess.check_output("wmic csproduct get uuid", shell=True).decode().split("\\n")[1].strip()
         elif system == "Linux":
-            # Reliable Linux Machine ID
             if os.path.exists("/etc/machine-id"):
-                with open("/etc/machine-id", "r") as f:
-                    raw_id = f.read().strip()
+                with open("/etc/machine-id", "r") as f: raw_id = f.read().strip()
             elif os.path.exists("/var/lib/dbus/machine-id"):
-                 with open("/var/lib/dbus/machine-id", "r") as f:
-                    raw_id = f.read().strip()
-        elif system == "Darwin": # macOS
+                 with open("/var/lib/dbus/machine-id", "r") as f: raw_id = f.read().strip()
+        elif system == "Darwin": 
             cmd = "ioreg -d2 -c IOPlatformExpertDevice | awk -F\\\" '/IOPlatformUUID/{print $(NF-1)}'"
             raw_id = subprocess.check_output(cmd, shell=True).decode().strip()
-    except Exception:
-        pass # Command failed (likely Termux or Restricted Env)
+    except Exception: pass
         
-    if not raw_id:
-        # Fallback: Generate random UUID
-        # This becomes stable because we save it to the lock file below.
-        raw_id = str(uuid.uuid4())
+    if not raw_id: raw_id = str(uuid.uuid4())
         
-    # 3. Hash and Save to Lock File
     final_hwid = hashlib.sha256(raw_id.encode()).hexdigest()
     
     try:
-        with open(LOCK_FILE, "w") as f:
-            f.write(final_hwid)
-    except:
-        print("[!] Warning: Could not save hwid.lock. ID might change on next run.")
+        with open(LOCK_FILE, "w") as f: f.write(final_hwid)
+    except: pass
         
     return final_hwid
 
@@ -91,10 +78,13 @@ def validate_license(key_input):
     Performs 1-Device Binding logic client-side securely.
     """
     hwid = get_hwid()
+    device_name = socket.gethostname()
+    
+    print(f"[*] Hostname:    {device_name}")
     print(f"[*] Hardware ID: {hwid[:8]}...")
-    print(f"[*] Checking Database...")
+    print(f"[*] Connecting to Database...")
 
-    # 1. SEARCH FOR KEY (Using runQuery to find document by 'key' field)
+    # 1. SEARCH FOR KEY
     query_url = f"{BASE_URL}:runQuery?key={API_KEY}"
     query_payload = {
         "structuredQuery": {
@@ -114,53 +104,50 @@ def validate_license(key_input):
         res = requests.post(query_url, json=query_payload)
         data = res.json()
 
-        # Check if document exists
         if not data or not data[0].get('document'):
             print("[-] INVALID KEY: Key not found in database.")
             return False
 
         doc = data[0]['document']
-        doc_id = doc['name'].split('/')[-1] # Extract Document ID
+        doc_id = doc['name'].split('/')[-1]
         fields = doc.get('fields', {})
 
         # 2. PARSE FIELDS
         status = fields.get('status', {}).get('stringValue', 'UNKNOWN')
         bound_hwid = fields.get('boundDeviceId', {}).get('stringValue', None)
-        expires_at = fields.get('expiresAt', {}).get('integerValue', None) # Timestamp (ms)
+        expires_at = fields.get('expiresAt', {}).get('integerValue', None) 
         
         # 3. VALIDATION CHECKS
-        
-        # Check Status
         if status != 'ACTIVE':
             print(f"[-] ACCESS DENIED: Key is {status}")
             return False
 
-        # Check Expiration
         if expires_at:
-            current_ms = int(time.time() * 1000)
-            if current_ms > int(expires_at):
+            if int(time.time() * 1000) > int(expires_at):
                 print("[-] ACCESS DENIED: Key has expired.")
                 return False
 
         # 4. DEVICE BINDING LOGIC
         if bound_hwid:
             if bound_hwid != hwid:
-                print("[-] HWID MISMATCH: Key is bound to another device.")
+                print(f"[-] HWID MISMATCH: Key bound to another device.")
                 return False
             else:
                 print("[+] DEVICE VERIFIED: HWID Matches.")
         else:
-            print("[*] BINDING KEY TO THIS DEVICE...")
-            # PATCH request to bind HWID
-            update_url = f"{BASE_URL}/keys/{doc_id}?updateMask.fieldPaths=boundDeviceId&key={API_KEY}"
+            print(f"[*] BINDING KEY TO: {device_name}...")
+            # PATCH request to bind HWID AND Device Name
+            update_url = f"{BASE_URL}/keys/{doc_id}?updateMask.fieldPaths=boundDeviceId&updateMask.fieldPaths=deviceName&key={API_KEY}"
             patch_body = {
                 "fields": {
-                    "boundDeviceId": {"stringValue": hwid}
+                    "boundDeviceId": {"stringValue": hwid},
+                    "deviceName": {"stringValue": device_name}
                 }
             }
             patch_res = requests.patch(update_url, json=patch_body)
             if patch_res.status_code != 200:
                 print("[!] BINDING FAILED. Check Firestore Rules.")
+                print(patch_res.text)
                 return False
             print("[+] BINDING SUCCESSFUL.")
 
@@ -185,8 +172,66 @@ if __name__ == "__main__":
         sys.exit()
 `;
 
+  const bashCode = `#!/bin/bash
+# ROG ADMIN // HWID GENERATOR
+# Use this to get the HWID for Manual Key Binding
+
+get_hwid() {
+    local raw_id=""
+    
+    # 1. Try to get stable System ID
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        if [ -f /etc/machine-id ]; then
+            raw_id=$(cat /etc/machine-id)
+        elif [ -f /var/lib/dbus/machine-id ]; then
+            raw_id=$(cat /var/lib/dbus/machine-id)
+        fi
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        raw_id=$(ioreg -d2 -c IOPlatformExpertDevice | awk -F\\" '/IOPlatformUUID/{print $(NF-1)}')
+    fi
+
+    # 2. Fallback if empty
+    if [ -z "$raw_id" ]; then
+        # Try uuidgen if available
+        if command -v uuidgen &> /dev/null; then
+            raw_id=$(uuidgen)
+        else
+            # Weak fallback using date
+            raw_id=$(date +%s%N) 
+        fi
+    fi
+
+    # 3. Sanitize
+    raw_id=$(echo "$raw_id" | tr -d '[:space:]')
+
+    # 4. Hash (SHA256) to match Python Client
+    if command -v sha256sum &> /dev/null; then
+        echo -n "$raw_id" | sha256sum | awk '{print $1}'
+    elif command -v shasum &> /dev/null; then
+        echo -n "$raw_id" | shasum -a 256 | awk '{print $1}'
+    else
+        # Fallback to python for hashing if installed
+        python3 -c "import hashlib; print(hashlib.sha256('$raw_id'.encode()).hexdigest())" 2>/dev/null
+    fi
+}
+
+echo "------------------------------------------------"
+echo " ROG ADMIN // MANUAL BINDING TOOL"
+echo "------------------------------------------------"
+HWID=$(get_hwid)
+
+if [ -z "$HWID" ]; then
+  echo "Error: Could not generate HWID."
+else
+  echo "HOSTNAME: $(hostname)"
+  echo "HWID:     $HWID"
+  echo "------------------------------------------------"
+  echo ">> Copy 'HWID' and use it in the Admin Panel."
+fi
+`;
+
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(pythonCode);
+    await navigator.clipboard.writeText(activeTab === 'python' ? pythonCode : bashCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -199,9 +244,9 @@ if __name__ == "__main__":
          <div>
              <div className="flex items-center gap-2 mb-1">
                 <Code2 className="w-6 h-6 text-rog-red" />
-                <h1 className="text-xl font-bold text-white tracking-wider italic uppercase">Python Integration</h1>
+                <h1 className="text-xl font-bold text-white tracking-wider italic uppercase">Integration</h1>
              </div>
-             <p className="text-xs text-gray-400 font-mono">DIRECT FIRESTORE MODE (NO BACKEND)</p>
+             <p className="text-xs text-gray-400 font-mono">CLIENT SCRIPTS & TOOLS</p>
          </div>
 
          <div className="flex items-center gap-2 w-full md:w-auto">
@@ -222,53 +267,44 @@ if __name__ == "__main__":
                       <Database className="w-4 h-4" /> How it works
                   </h3>
                   <p className="text-xs text-gray-400 leading-relaxed mb-4">
-                      This script connects directly to Google Firestore using the REST API. 
-                      It does not require a backend server or Cloud Functions.
+                      The Python script connects directly to Firestore. It automatically captures the user's 
+                      <strong className="text-white mx-1">Hostname</strong> and 
+                      <strong className="text-white mx-1">HWID</strong> to lock the key to their specific device.
                   </p>
                   <div className="text-[10px] font-mono bg-black p-3 rounded border border-gray-800 text-gray-300">
                       Endpoint: <span className="text-green-500">firestore.googleapis.com</span>
                   </div>
               </div>
 
-              {/* Guide */}
-              <div className="bg-[#1a1a1d] border border-rog-border rounded-sm overflow-hidden">
-                  <button 
-                    onClick={() => setShowInstructions(!showInstructions)}
-                    className="w-full p-4 flex items-center justify-between bg-white/5 hover:bg-white/10 transition-colors"
-                  >
-                      <span className="text-xs font-bold uppercase tracking-widest text-white flex items-center gap-2">
-                          <Globe className="w-4 h-4 text-rog-red" /> Quick Start
-                      </span>
-                      <ArrowRight className={`w-4 h-4 text-gray-500 transition-transform ${showInstructions ? 'rotate-90' : ''}`} />
-                  </button>
+              {/* Tab Selector */}
+              <div className="bg-[#1a1a1d] border border-rog-border p-2 rounded-sm flex flex-col gap-2">
+                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest px-2 mb-1">Select Tool</div>
                   
-                  {showInstructions && (
-                      <div className="p-4 space-y-4 border-t border-gray-800">
-                          <div className="flex gap-3">
-                              <div className="w-5 h-5 rounded-full bg-rog-red/20 text-rog-red flex items-center justify-center text-[10px] font-bold border border-rog-red/50 shrink-0 mt-0.5">1</div>
-                              <div>
-                                  <div className="text-xs font-bold text-white mb-1">Copy Code</div>
-                                  <p className="text-[10px] text-gray-500">Copy the Python script to a file named <code className="text-white">loader.py</code>.</p>
-                              </div>
-                          </div>
-                          
-                          <div className="flex gap-3">
-                              <div className="w-5 h-5 rounded-full bg-rog-red/20 text-rog-red flex items-center justify-center text-[10px] font-bold border border-rog-red/50 shrink-0 mt-0.5">2</div>
-                              <div>
-                                  <div className="text-xs font-bold text-white mb-1">Install Requests</div>
-                                  <div className="text-[10px] text-gray-500 font-mono bg-black p-1.5 rounded border border-gray-800">pip install requests</div>
-                              </div>
-                          </div>
-
-                          <div className="flex gap-3">
-                              <div className="w-5 h-5 rounded-full bg-rog-red/20 text-rog-red flex items-center justify-center text-[10px] font-bold border border-rog-red/50 shrink-0 mt-0.5">3</div>
-                              <div>
-                                  <div className="text-xs font-bold text-white mb-1">Set Rules</div>
-                                  <p className="text-[10px] text-gray-500">Go to the <strong>SERVER</strong> tab and copy the Security Rules to your Firebase Console.</p>
-                              </div>
-                          </div>
+                  <button 
+                    onClick={() => setActiveTab('python')}
+                    className={`p-3 rounded text-left flex items-center gap-3 transition-all border ${activeTab === 'python' ? 'bg-rog-red/10 border-rog-red text-white' : 'bg-transparent border-transparent text-gray-500 hover:bg-white/5'}`}
+                  >
+                      <div className={`w-8 h-8 rounded flex items-center justify-center ${activeTab === 'python' ? 'bg-rog-red text-white' : 'bg-[#222]'}`}>
+                          <Code2 className="w-4 h-4" />
                       </div>
-                  )}
+                      <div>
+                          <div className="text-xs font-bold uppercase">Python Client</div>
+                          <div className="text-[9px] opacity-60">Main Loader Script</div>
+                      </div>
+                  </button>
+
+                  <button 
+                    onClick={() => setActiveTab('bash')}
+                    className={`p-3 rounded text-left flex items-center gap-3 transition-all border ${activeTab === 'bash' ? 'bg-rog-red/10 border-rog-red text-white' : 'bg-transparent border-transparent text-gray-500 hover:bg-white/5'}`}
+                  >
+                      <div className={`w-8 h-8 rounded flex items-center justify-center ${activeTab === 'bash' ? 'bg-rog-red text-white' : 'bg-[#222]'}`}>
+                          <Terminal className="w-4 h-4" />
+                      </div>
+                      <div>
+                          <div className="text-xs font-bold uppercase">Bash Generator</div>
+                          <div className="text-[9px] opacity-60">Get HWID for Manual Bind</div>
+                      </div>
+                  </button>
               </div>
           </div>
 
@@ -281,7 +317,9 @@ if __name__ == "__main__":
                         <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></div>
                         <div className="w-2.5 h-2.5 rounded-full bg-green-500/80"></div>
                     </div>
-                    <span className="ml-2 text-xs text-gray-400 font-mono">loader.py</span>
+                    <span className="ml-2 text-xs text-gray-400 font-mono">
+                        {activeTab === 'python' ? 'loader.py' : 'get_hwid.sh'}
+                    </span>
                 </div>
                 <button 
                     onClick={handleCopy}
@@ -294,7 +332,7 @@ if __name__ == "__main__":
              
              <div className="flex-1 overflow-auto p-6 custom-scrollbar relative">
                 <pre className="text-xs sm:text-sm text-gray-300 leading-relaxed font-mono">
-                    <code>{pythonCode}</code>
+                    <code>{activeTab === 'python' ? pythonCode : bashCode}</code>
                 </pre>
              </div>
           </div>
