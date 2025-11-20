@@ -41,18 +41,15 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     <div className="min-h-screen w-full flex items-center justify-center bg-[#050505] relative overflow-hidden p-4 perspective-1000">
       {/* Simple Background Accents */}
       <div className="absolute top-0 left-0 w-full h-1 bg-rog-red opacity-50"></div>
-      <motion.div 
-        animate={{ opacity: [0.1, 0.3, 0.1], scale: [1, 1.2, 1] }}
-        transition={{ duration: 5, repeat: Infinity }}
-        className="absolute bottom-0 right-0 w-1/3 h-1/3 bg-rog-red/5 blur-[100px] rounded-full pointer-events-none"
-      ></motion.div>
+      
+      {/* Static Accent Blob (Replaces heavy animation) */}
+      <div className="absolute bottom-0 right-0 w-[30vw] h-[30vw] max-w-[400px] max-h-[400px] bg-rog-red/5 blur-[80px] rounded-full pointer-events-none translate-x-1/3 translate-y-1/3"></div>
       
       {/* Main Login Card */}
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, rotateX: 20 }}
         animate={{ opacity: 1, scale: 1, rotateX: 0 }}
         transition={{ duration: 0.6, type: "spring", bounce: 0.4 }}
-        whileHover={{ rotateX: 2, rotateY: 2, scale: 1.01 }}
         className="relative z-10 w-full max-w-md p-1"
       >
          <div className="bg-[#0e0e10] border border-gray-800 relative p-6 md:p-10 shadow-2xl clip-angle hover:shadow-[0_0_30px_rgba(255,0,60,0.15)] transition-shadow duration-500">

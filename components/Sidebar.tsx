@@ -7,7 +7,7 @@ interface SidebarProps {
   onLogout: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onLogout }) => {
+const LiveClock = React.memo(() => {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -15,6 +15,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onLogout }) =
     return () => clearInterval(timer);
   }, []);
 
+  return (
+    <div className="mb-4 flex items-center gap-2 text-gray-600 font-mono text-xs">
+        <Clock className="w-3 h-3" />
+        <span>{time.toLocaleTimeString()}</span>
+    </div>
+  );
+});
+
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onLogout }) => {
   const navItems = [
     { id: 'dashboard', label: 'DASHBOARD', icon: LayoutGrid },
     { id: 'python', label: 'INTEGRATION', icon: Code },
@@ -73,10 +82,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onLogout }) =
       {/* Footer */}
       <div className="p-6 border-t border-gray-900">
         {/* Live Clock */}
-        <div className="mb-4 flex items-center gap-2 text-gray-600 font-mono text-xs">
-            <Clock className="w-3 h-3" />
-            <span>{time.toLocaleTimeString()}</span>
-        </div>
+        <LiveClock />
 
         <button
             onClick={onLogout}
