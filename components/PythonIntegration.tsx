@@ -20,7 +20,7 @@ import json
 import subprocess
 
 # ==========================================
-# ROG ADMIN CLIENT LOADER V3.4
+# ROG ADMIN CLIENT LOADER V4.0 (SECURE)
 # ==========================================
 
 # CONFIGURATION
@@ -38,7 +38,6 @@ def get_hwid():
         mac = uuid.getnode()
         
         # 2. Architecture (Stable parts only)
-        # We avoid platform.version() as it changes on Windows Updates
         sys_info = f"{platform.system()}-{platform.machine()}-{platform.processor()}"
         
         # 3. OS Specific UUID (The "Fingerprint")
@@ -117,14 +116,13 @@ def validate_key(license_key):
         except ValueError:
             print("\\n[!] CONNECTION ERROR: The server returned HTML/Text instead of JSON.")
             print(f"    Status Code: {response.status_code}")
+            print(f"    Raw Response: {response.text[:100]}...")
             print("-" * 40)
             if response.status_code == 404:
                 print("    [DIAGNOSIS] The Cloud Function is NOT DEPLOYED.")
-                print("    Please go to your project folder and run: firebase deploy --only functions")
+                print("    Please run 'firebase deploy --only functions' in Termux.")
             elif response.status_code == 500:
                 print("    [DIAGNOSIS] Server Internal Error. Check Firebase Logs.")
-            else:
-                print(f"    Response: {response.text[:100]}...")
             print("-" * 40)
             return None
         # -----------------------
@@ -142,8 +140,11 @@ def validate_key(license_key):
             return None
             
         elif response.status_code == 404:
-            # This is a logical 404 (Key missing), distinct from URL 404
             print(f"\\n[-] KEY INVALID: {data.get('message')}")
+            return None
+        
+        elif response.status_code == 401:
+            print(f"\\n[-] SECURITY ERROR: {data.get('message')}")
             return None
             
         else:
@@ -170,11 +171,10 @@ def main_program(auth_data):
     print(f"[+] Status      : AUTHORIZED")
     print(f"[+] Client Ref  : {auth_data.get('owner_note', 'N/A')}") 
     print(f"[+] Expiration  : {auth_data.get('expires_at', 'Lifetime')}")
-    print(f"[+] Bound HWID  : {auth_data.get('device_id', 'N/A')[:12]}...")
+    print(f"[+] Device ID   : {auth_data.get('device_id', 'N/A')[:12]}...")
     print("="*50)
     
-    print("\\n[SUCCESS] Data loaded from database successfully.")
-    print("[*] Starting application modules...")
+    print("\\n[SUCCESS] Session Secure. Starting modules...")
     # Your app code goes here...
     input("\\nPress Enter to exit...")
 
@@ -193,7 +193,7 @@ if __name__ == "__main__":
         main_program(auth_data)
     else:
         print("\\n[-] Authentication Failed. Exiting...")
-        time.sleep(3)
+        time.sleep(2)
         sys.exit(1)`;
 
   const handleCopy = async () => {
