@@ -4,7 +4,7 @@ import {
   RefreshCw, X, Shield, Activity, Server, Zap, AlertTriangle,
   FileText, Monitor,
   Key, Copy, Loader2, RotateCcw, Fingerprint, Clock, Laptop,
-  Download, ArrowUpDown
+  Download, ArrowUpDown, Filter, SortAsc
 } from 'lucide-react';
 import { createKey, toggleKeyStatus, deleteKey, subscribeToKeys, resetHwid } from '../services/mockDb';
 import { LicenseKey, KeyStatus, DurationType } from '../types';
@@ -13,6 +13,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 const KeyManager: React.FC = () => {
   const [keys, setKeys] = useState<LicenseKey[]>([]);
   const [filter, setFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<KeyStatus | 'ALL'>('ALL');
   const [sortOrder, setSortOrder] = useState<'NEWEST' | 'OLDEST' | 'EXPIRES_SOON'>('NEWEST');
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -124,7 +125,7 @@ const KeyManager: React.FC = () => {
 
   const handleExportCsv = () => {
     const headers = ["ID", "Key", "Status", "Note", "Created", "Expires", "Bound HWID", "Device Name"];
-    const rows = keys.map(k => [
+    const rows = filteredKeys.map(k => [
       k.id,
       k.key,
       k.status,
@@ -162,9 +163,11 @@ const KeyManager: React.FC = () => {
     return `${hours}H LEFT`;
   };
 
-  const filteredKeys = keys.filter(k => 
-    k.key.toLowerCase().includes(filter.toLowerCase()) || k.note.toLowerCase().includes(filter.toLowerCase())
-  ).sort((a, b) => {
+  const filteredKeys = keys.filter(k => {
+    const matchesSearch = k.key.toLowerCase().includes(filter.toLowerCase()) || k.note.toLowerCase().includes(filter.toLowerCase());
+    const matchesStatus = statusFilter === 'ALL' || k.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  }).sort((a, b) => {
     if (sortOrder === 'NEWEST') return b.createdAt - a.createdAt;
     if (sortOrder === 'OLDEST') return a.createdAt - b.createdAt;
     if (sortOrder === 'EXPIRES_SOON') {
@@ -176,7 +179,7 @@ const KeyManager: React.FC = () => {
   });
 
   return (
-    <div className="flex flex-col gap-4 text-white h-full">
+    <div className="flex flex-col gap-4 text-white h-full pb-20">
       
       {/* Error Banner */}
       <AnimatePresence>
@@ -197,70 +200,97 @@ const KeyManager: React.FC = () => {
       {/* Stats Row */}
       <div className="grid grid-cols-2 gap-3 md:gap-6">
           <motion.div 
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            className="bg-[#0e0e10] border border-[#222] p-3 md:p-4 rounded flex flex-col justify-between relative overflow-hidden group"
+            initial={{ opacity: 0, y: 20, rotateX: 15 }} 
+            animate={{ opacity: 1, y: 0, rotateX: 0 }} 
+            transition={{ delay: 0.1 }}
+            className="bg-[#0e0e10] border border-[#222] p-3 md:p-4 rounded flex flex-col justify-between relative overflow-hidden group perspective-1000"
           >
-             <div className="text-[9px] md:text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Active Keys</div>
-             <div className="text-2xl md:text-4xl font-black text-white">{keys.filter(k => k.status === KeyStatus.ACTIVE).length}</div>
-             <Activity className="absolute -bottom-1 -right-1 w-8 h-8 md:w-12 md:h-12 text-rog-red opacity-20 group-hover:opacity-40 transition-opacity" />
+             <div className="absolute inset-0 bg-gradient-to-br from-rog-red/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+             <div className="text-[9px] md:text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1 relative z-10">Active Keys</div>
+             <div className="text-2xl md:text-4xl font-black text-white relative z-10">{keys.filter(k => k.status === KeyStatus.ACTIVE).length}</div>
+             <Activity className="absolute -bottom-1 -right-1 w-8 h-8 md:w-12 md:h-12 text-rog-red opacity-20 group-hover:opacity-40 transition-all duration-500 group-hover:scale-110" />
           </motion.div>
           <motion.div 
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+            initial={{ opacity: 0, y: 20, rotateX: 15 }} 
+            animate={{ opacity: 1, y: 0, rotateX: 0 }} 
+            transition={{ delay: 0.2 }}
             className="bg-[#0e0e10] border border-[#222] p-3 md:p-4 rounded flex flex-col justify-between relative overflow-hidden group"
           >
              <div className="text-[9px] md:text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Latency</div>
              <div className="text-2xl md:text-4xl font-black text-white">{serverLoad}<span className="text-[10px] md:text-sm text-gray-600 ml-1 font-mono">ms</span></div>
-             <Server className="absolute -bottom-1 -right-1 w-8 h-8 md:w-12 md:h-12 text-green-500 opacity-20 group-hover:opacity-40 transition-opacity" />
+             <Server className="absolute -bottom-1 -right-1 w-8 h-8 md:w-12 md:h-12 text-green-500 opacity-20 group-hover:opacity-40 transition-all duration-500 group-hover:scale-110" />
           </motion.div>
       </div>
 
       {/* Action Bar */}
       <motion.div 
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
-        className="flex flex-col md:flex-row gap-2 md:h-12"
+        className="flex flex-col xl:flex-row gap-3 bg-[#0e0e10] border border-[#222] p-2 rounded"
       >
-          <div className="relative flex-1 h-12 md:h-full">
+          {/* Search */}
+          <div className="relative flex-1 h-10">
              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
              <input 
                value={filter}
                onChange={(e) => setFilter(e.target.value)}
                placeholder="Search Keys..."
-               className="w-full h-full bg-[#0e0e10] border border-[#222] rounded pl-9 pr-3 text-xs text-white focus:border-rog-red outline-none transition-colors font-mono placeholder-gray-700 focus:bg-[#151518]"
+               className="w-full h-full bg-[#151518] border border-[#2a2a2e] rounded pl-9 pr-3 text-xs text-white focus:border-rog-red outline-none transition-colors font-mono placeholder-gray-700"
              />
           </div>
           
-          <div className="flex gap-2 h-12 md:h-full">
-             <div className="relative group">
+          <div className="flex flex-wrap items-center gap-2">
+             
+             {/* Filter Pills */}
+             <div className="flex bg-[#151518] border border-[#2a2a2e] rounded p-1 h-10">
+                {(['ALL', KeyStatus.ACTIVE, KeyStatus.BANNED] as const).map(s => (
+                    <button
+                        key={s}
+                        onClick={() => setStatusFilter(s)}
+                        className={`px-3 rounded text-[10px] font-bold transition-all ${statusFilter === s ? 'bg-gray-700 text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}
+                    >
+                        {s}
+                    </button>
+                ))}
+             </div>
+
+             <div className="w-px h-6 bg-gray-800 mx-1 hidden xl:block"></div>
+
+             {/* Sorting */}
+             <div className="relative group h-10">
+                <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                    <SortAsc className="w-3 h-3 text-gray-600" />
+                </div>
                 <select 
                   value={sortOrder}
                   onChange={(e) => setSortOrder(e.target.value as any)}
-                  className="h-full appearance-none bg-[#0e0e10] border border-[#222] rounded pl-3 pr-8 text-[10px] text-gray-400 font-bold uppercase outline-none focus:border-gray-600 hover:text-white cursor-pointer w-full md:w-auto"
+                  className="h-full appearance-none bg-[#151518] border border-[#2a2a2e] rounded pl-7 pr-6 text-[10px] text-gray-400 font-bold uppercase outline-none focus:border-gray-600 hover:text-white cursor-pointer"
                 >
-                  <option value="NEWEST">Newest First</option>
-                  <option value="OLDEST">Oldest First</option>
-                  <option value="EXPIRES_SOON">Expires Soon</option>
+                  <option value="NEWEST">Newest</option>
+                  <option value="OLDEST">Oldest</option>
+                  <option value="EXPIRES_SOON">Expiry</option>
                 </select>
-                <ArrowUpDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-600 pointer-events-none" />
              </div>
 
+             {/* Export */}
              <button 
                onClick={handleExportCsv}
-               className="bg-[#0e0e10] border border-[#222] hover:border-gray-600 text-gray-400 hover:text-white px-3 rounded flex items-center justify-center shrink-0 transition-colors"
+               className="h-10 px-3 bg-[#151518] border border-[#2a2a2e] hover:border-gray-600 text-gray-400 hover:text-white rounded flex items-center justify-center transition-colors"
                title="Export CSV"
              >
                <Download className="w-4 h-4" />
              </button>
              
+             {/* Generate Button */}
              <button 
                 onClick={() => setCreateModalOpen(true)}
-                className="bg-rog-red hover:bg-red-600 text-white px-4 rounded font-bold uppercase tracking-wider text-xs flex items-center justify-center shrink-0 transition-colors shadow-[0_0_15px_rgba(255,0,60,0.3)] gap-2"
+                className="h-10 px-5 bg-rog-red hover:bg-red-600 text-white rounded font-bold uppercase tracking-wider text-xs flex items-center justify-center transition-colors shadow-[0_0_15px_rgba(255,0,60,0.3)] gap-2 hover:scale-105 active:scale-95"
              >
-                <Plus className="w-5 h-5" /> <span className="hidden md:inline">Generate</span>
+                <Plus className="w-4 h-4" /> <span className="">Create</span>
              </button>
              
              <button 
                 onClick={handleForceSync}
-                className="bg-[#0e0e10] border border-[#222] text-gray-400 hover:text-white px-3 rounded flex items-center justify-center shrink-0 transition-colors hover:border-gray-700"
+                className="h-10 w-10 bg-[#151518] border border-[#2a2a2e] text-gray-400 hover:text-white rounded flex items-center justify-center transition-colors hover:border-gray-700"
              >
                 <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin text-rog-red' : ''}`} />
              </button>
@@ -268,7 +298,7 @@ const KeyManager: React.FC = () => {
       </motion.div>
 
       {/* Keys List */}
-      <div className="space-y-3 pb-20">
+      <div className="space-y-3">
           {filteredKeys.length === 0 ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20 opacity-30 flex flex-col items-center border border-dashed border-gray-800 rounded">
                  {isLoading ? <Loader2 className="w-8 h-8 animate-spin mb-2"/> : <Shield className="w-8 h-8 mb-2"/>}
@@ -276,7 +306,7 @@ const KeyManager: React.FC = () => {
               </motion.div>
           ) : (
               <AnimatePresence mode="popLayout">
-              {filteredKeys.map((k) => {
+              {filteredKeys.map((k, index) => {
                   const isExpired = k.expiresAt && Date.now() > k.expiresAt;
                   const isDeleting = deletingIds.has(k.id);
                   const isResetting = resettingIds.has(k.id);
@@ -285,25 +315,27 @@ const KeyManager: React.FC = () => {
                   return (
                     <motion.div 
                       layout
-                      initial={{ opacity: 0, scale: 0.98 }}
-                      animate={{ opacity: isDeleting ? 0.5 : 1, scale: 1 }}
-                      exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                      transition={{ duration: 0.2 }}
+                      initial={{ opacity: 0, x: -20, scale: 0.95 }}
+                      animate={{ opacity: isDeleting ? 0.5 : 1, x: 0, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                      transition={{ delay: index * 0.05, type: 'spring', stiffness: 300, damping: 25 }}
                       key={k.id} 
-                      className={`bg-[#0e0e10] border border-[#222] p-4 rounded-sm relative group ${isDeleting ? 'opacity-50 pointer-events-none' : 'hover:border-gray-700'} transition-colors`}
+                      className={`bg-[#0e0e10] border border-[#222] p-4 rounded-sm relative group hover:border-rog-red/30 transition-all duration-300 hover:shadow-[0_5px_20px_-10px_rgba(0,0,0,0.5)] hover:-translate-y-1 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
                     >
+                       {/* 3D Hover Effect Overlay */}
+                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                        
-                       <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                       <div className="flex flex-col lg:flex-row lg:items-center gap-4 relative z-10">
                            
                            {/* Main Info */}
                            <div className="flex items-center gap-3 flex-1 min-w-0">
                                <div 
-                                 className={`w-10 h-10 rounded flex items-center justify-center shrink-0 bg-white/5 ${k.status === 'ACTIVE' ? 'text-white' : 'text-gray-600'}`}
+                                 className={`w-10 h-10 rounded flex items-center justify-center shrink-0 bg-[#151518] border border-[#222] group-hover:border-rog-red/50 transition-colors ${k.status === 'ACTIVE' ? 'text-white' : 'text-gray-600'}`}
                                >
                                   <Key className="w-5 h-5" />
                                </div>
                                <div className="flex flex-col min-w-0">
-                                   <div className="font-mono font-bold text-sm md:text-base text-white truncate tracking-wider select-all">{k.key}</div>
+                                   <div className="font-mono font-bold text-sm md:text-base text-white truncate tracking-wider select-all group-hover:text-rog-red transition-colors">{k.key}</div>
                                    <div className="text-[10px] text-gray-500 truncate flex items-center gap-1">
                                       {k.note ? <FileText className="w-3 h-3" /> : null}
                                       {k.note || 'NO REF'}
@@ -387,14 +419,14 @@ const KeyManager: React.FC = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 z-[60] bg-black/90 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+          className="absolute inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
         >
             <motion.div 
-              initial={{ opacity: 0, y: 50, scale: 0.95 }}
+              initial={{ opacity: 0, y: 100, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 50, scale: 0.95 }}
+              exit={{ opacity: 0, y: 100, scale: 0.9 }}
               transition={{ type: "spring", bounce: 0.3 }}
-              className="w-full h-full md:h-auto md:max-h-[600px] md:max-w-lg bg-[#0e0e10] md:border border-[#333] md:rounded-lg flex flex-col overflow-hidden shadow-2xl"
+              className="w-full h-full md:h-auto md:max-h-[600px] md:max-w-lg bg-[#0e0e10] md:border border-[#333] md:rounded-lg flex flex-col overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)]"
             >
                 
                 <div className="p-4 border-b border-[#222] flex justify-between items-center bg-[#151518]">
@@ -410,7 +442,7 @@ const KeyManager: React.FC = () => {
                         <input 
                           value={prefix}
                           onChange={e => setPrefix(e.target.value.toUpperCase())}
-                          className="w-full bg-black border border-[#333] p-3 text-white font-mono font-bold rounded focus:border-rog-red outline-none"
+                          className="w-full bg-black border border-[#333] p-3 text-white font-mono font-bold rounded focus:border-rog-red outline-none transition-all focus:shadow-[0_0_15px_rgba(255,0,60,0.2)]"
                           placeholder="ROG"
                         />
                     </div>
@@ -429,7 +461,7 @@ const KeyManager: React.FC = () => {
                                     <button 
                                         key={type}
                                         onClick={() => setDurationType(type as DurationType)}
-                                        className={`flex-1 text-[10px] font-bold rounded transition-all ${durationType === type ? 'bg-rog-red text-white' : 'text-gray-500'}`}
+                                        className={`flex-1 text-[10px] font-bold rounded transition-all ${durationType === type ? 'bg-rog-red text-white shadow-[0_0_10px_rgba(255,0,60,0.4)]' : 'text-gray-500 hover:text-gray-300'}`}
                                     >
                                         {type}
                                     </button>
@@ -465,9 +497,9 @@ const KeyManager: React.FC = () => {
                 <div className="p-4 border-t border-[#222] bg-[#151518]">
                     <button 
                         onClick={handleGenerate}
-                        className="w-full bg-white hover:bg-gray-200 text-black font-black py-4 rounded uppercase tracking-[0.2em] flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+                        className="w-full bg-white hover:bg-gray-200 text-black font-black py-4 rounded uppercase tracking-[0.2em] flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] group"
                     >
-                        <Zap className="w-5 h-5" /> GENERATE
+                        <Zap className="w-5 h-5 group-hover:text-rog-red transition-colors" /> GENERATE
                     </button>
                 </div>
 

@@ -61,7 +61,7 @@ service cloud.firestore {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="flex flex-col h-full md:p-8 p-4 pb-20 md:pb-8"
+      className="flex flex-col h-full md:p-8 p-4 pb-24 md:pb-8 overflow-visible"
     >
       
       {/* Header */}
@@ -81,7 +81,10 @@ service cloud.firestore {
           <motion.div variants={itemVariants} className="space-y-6">
               
               {/* Alert */}
-              <div className="bg-orange-500/10 border border-orange-500/30 p-4 rounded flex gap-3 items-start">
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                className="bg-orange-500/10 border border-orange-500/30 p-4 rounded flex gap-3 items-start transition-transform"
+              >
                   <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
                   <div>
                       <h4 className="text-orange-500 font-bold text-xs uppercase tracking-wider mb-1">Serverless Mode Active</h4>
@@ -90,10 +93,10 @@ service cloud.firestore {
                           No hosting or backend setup is required.
                       </p>
                   </div>
-              </div>
+              </motion.div>
 
               {/* Config Card */}
-              <div className="bg-[#1a1a1d] border border-rog-border p-5 rounded-sm">
+              <div className="bg-[#1a1a1d] border border-rog-border p-5 rounded-sm hover:border-gray-700 transition-colors duration-300">
                   <h3 className="text-rog-red font-bold uppercase tracking-widest text-xs mb-4 flex items-center gap-2">
                       <Lock className="w-4 h-4" /> Public Credentials
                   </h3>
@@ -101,7 +104,7 @@ service cloud.firestore {
                   <div className="space-y-4">
                       <div>
                           <label className="text-[10px] text-gray-500 font-bold block mb-1.5">PROJECT ID</label>
-                          <div className="bg-black border border-gray-800 p-3 rounded text-xs text-white font-mono flex justify-between items-center group">
+                          <div className="bg-black border border-gray-800 p-3 rounded text-xs text-white font-mono flex justify-between items-center group transition-all hover:border-rog-red/50">
                               <span>{FIREBASE_CONFIG.projectId}</span>
                               <button onClick={() => navigator.clipboard.writeText(FIREBASE_CONFIG.projectId)} className="text-gray-600 hover:text-white"><Copy className="w-3 h-3"/></button>
                           </div>
@@ -109,7 +112,7 @@ service cloud.firestore {
 
                       <div>
                           <label className="text-[10px] text-gray-500 font-bold block mb-1.5">WEB API KEY</label>
-                          <div className="bg-black border border-gray-800 p-3 rounded text-xs text-green-500 font-mono flex justify-between items-center group">
+                          <div className="bg-black border border-gray-800 p-3 rounded text-xs text-green-500 font-mono flex justify-between items-center group transition-all hover:border-green-500/50">
                               <span>{FIREBASE_CONFIG.apiKey}</span>
                               <button onClick={() => navigator.clipboard.writeText(FIREBASE_CONFIG.apiKey)} className="text-gray-600 hover:text-white"><Copy className="w-3 h-3"/></button>
                           </div>
@@ -119,9 +122,8 @@ service cloud.firestore {
           </motion.div>
 
           {/* Column 2: Security Rules */}
-          {/* Fix: Added min-h-[500px] for mobile devices to ensure visibility */}
-          <motion.div variants={itemVariants} className="flex flex-col h-[500px] lg:h-full">
-              <div className="bg-[#1a1a1d] border border-rog-border rounded-sm flex flex-col h-full overflow-hidden shadow-2xl">
+          <motion.div variants={itemVariants} className="flex flex-col min-h-[500px] h-auto lg:h-full pb-4 lg:pb-0">
+              <div className="bg-[#1a1a1d] border border-rog-border rounded-sm flex flex-col h-full overflow-hidden shadow-2xl hover:shadow-[0_0_30px_rgba(0,0,0,0.5)] transition-shadow duration-300">
                   <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-[#151518]">
                       <div className="flex items-center gap-2">
                           <Shield className="w-4 h-4 text-rog-red" />

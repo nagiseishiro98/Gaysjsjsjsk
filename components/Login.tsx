@@ -38,27 +38,33 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#050505] relative overflow-hidden p-4">
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#050505] relative overflow-hidden p-4 perspective-1000">
       {/* Simple Background Accents */}
       <div className="absolute top-0 left-0 w-full h-1 bg-rog-red opacity-50"></div>
-      <div className="absolute bottom-0 right-0 w-1/3 h-1/3 bg-rog-red/5 blur-[100px] rounded-full pointer-events-none"></div>
+      <motion.div 
+        animate={{ opacity: [0.1, 0.3, 0.1], scale: [1, 1.2, 1] }}
+        transition={{ duration: 5, repeat: Infinity }}
+        className="absolute bottom-0 right-0 w-1/3 h-1/3 bg-rog-red/5 blur-[100px] rounded-full pointer-events-none"
+      ></motion.div>
       
       {/* Main Login Card */}
       <motion.div 
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.5, type: "spring" }}
+        initial={{ opacity: 0, scale: 0.9, rotateX: 20 }}
+        animate={{ opacity: 1, scale: 1, rotateX: 0 }}
+        transition={{ duration: 0.6, type: "spring", bounce: 0.4 }}
+        whileHover={{ rotateX: 2, rotateY: 2, scale: 1.01 }}
         className="relative z-10 w-full max-w-md p-1"
       >
-         <div className="bg-[#0e0e10] border border-gray-800 relative p-6 md:p-10 shadow-2xl clip-angle">
+         <div className="bg-[#0e0e10] border border-gray-800 relative p-6 md:p-10 shadow-2xl clip-angle hover:shadow-[0_0_30px_rgba(255,0,60,0.15)] transition-shadow duration-500">
              
              {/* Header */}
              <div className="flex flex-col items-center mb-8 md:mb-12">
                 <motion.div 
                   initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2 }}
-                  className="bg-rog-red/10 p-3 md:p-4 rounded-full border border-rog-red/20 mb-4"
+                  className="bg-rog-red/10 p-3 md:p-4 rounded-full border border-rog-red/20 mb-4 relative group"
                 >
-                    <Cpu className="w-8 h-8 md:w-10 md:h-10 text-rog-red" />
+                    <div className="absolute inset-0 rounded-full bg-rog-red opacity-20 group-hover:animate-ping"></div>
+                    <Cpu className="w-8 h-8 md:w-10 md:h-10 text-rog-red relative z-10" />
                 </motion.div>
                 <motion.h1 
                    initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
@@ -84,7 +90,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                      type="email" 
                      value={email}
                      onChange={(e) => setEmail(e.target.value)}
-                     className="w-full bg-[#151518] text-white py-3 pl-10 pr-4 border border-gray-800 focus:border-rog-red outline-none transition-all font-mono text-sm placeholder-gray-600 hover:border-gray-700"
+                     className="w-full bg-[#151518] text-white py-3 pl-10 pr-4 border border-gray-800 focus:border-rog-red outline-none transition-all font-mono text-sm placeholder-gray-600 hover:border-gray-700 focus:shadow-[0_0_15px_rgba(255,0,60,0.1)]"
                      placeholder="ADMIN EMAIL"
                      autoComplete="email"
                      required
@@ -101,7 +107,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                      type="password"
                      value={password}
                      onChange={(e) => setPassword(e.target.value)}
-                     className="w-full bg-[#151518] text-white py-3 pl-10 pr-4 border border-gray-800 focus:border-rog-red outline-none transition-all font-mono text-sm placeholder-gray-600 hover:border-gray-700"
+                     className="w-full bg-[#151518] text-white py-3 pl-10 pr-4 border border-gray-800 focus:border-rog-red outline-none transition-all font-mono text-sm placeholder-gray-600 hover:border-gray-700 focus:shadow-[0_0_15px_rgba(255,0,60,0.1)]"
                      placeholder="DATABASE PASSWORD"
                      required
                    />
@@ -118,7 +124,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}
                    type="submit"
                    disabled={isLoading}
-                   className="w-full mt-6 bg-rog-red hover:bg-red-600 text-white font-bold py-3 uppercase tracking-widest transition-all flex items-center justify-center gap-2 group clip-angle-top active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                   className="w-full mt-6 bg-rog-red hover:bg-red-600 text-white font-bold py-3 uppercase tracking-widest transition-all flex items-center justify-center gap-2 group clip-angle-top active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_10px_rgba(255,0,60,0.3)] hover:shadow-[0_0_20px_rgba(255,0,60,0.6)]"
                >
                    <span>{isLoading ? 'Authenticating...' : 'Connect DB'}</span>
                    {!isLoading && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}

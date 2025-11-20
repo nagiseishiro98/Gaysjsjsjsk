@@ -45,28 +45,32 @@ const App: React.FC = () => {
     );
   }
 
-  // LOGIN SCREEN (Full width but centered content handled inside Login component)
+  // LOGIN SCREEN
   if (!isAuthenticated) {
     return <Login onLogin={() => {}} />;
   }
 
-  // MAIN APP - RESPONSIVE CHASSIS
+  // MAIN APP
   return (
-    <div className="min-h-screen w-full bg-[#111] flex items-center justify-center font-sans p-0 md:p-6">
+    <div className="min-h-screen w-full bg-[#111] flex items-center justify-center font-sans p-0 md:p-6 overflow-hidden">
       
-      {/* RESPONSIVE CONTAINER: Full width on mobile, Max-7xl on Desktop/Landscape */}
+      {/* RESPONSIVE CONTAINER */}
       <div className="w-full h-[100dvh] md:h-[90vh] md:w-[95vw] md:max-w-7xl bg-[#050505] relative flex flex-col shadow-2xl md:border border-[#333] md:rounded-xl overflow-hidden transition-all duration-300">
       
         {/* Header */}
-        <div className="flex items-center justify-between p-4 md:px-8 border-b border-gray-900 bg-[#0a0a0c] z-50 shrink-0 h-16 md:h-20 relative">
+        <div className="flex items-center justify-between p-4 md:px-8 border-b border-gray-900 bg-[#0a0a0c] z-50 shrink-0 h-16 md:h-20 relative shadow-md">
            <div className="font-bold text-xl md:text-2xl tracking-widest text-white flex items-center gap-3">
-              <div className="bg-rog-red/10 p-2 rounded border border-rog-red/30">
+              <motion.div 
+                animate={{ rotate: 360 }} 
+                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                className="bg-rog-red/10 p-2 rounded border border-rog-red/30"
+              >
                 <Cpu className="w-4 h-4 md:w-5 md:h-5 text-rog-red" />
-              </div>
+              </motion.div>
               <span className="italic">ROG<span className="text-rog-red">ADMIN</span></span>
            </div>
 
-           {/* Desktop Nav Tabs (Visible only on MD+) */}
+           {/* Desktop Nav Tabs */}
            <div className="hidden md:flex items-center gap-1 bg-black/50 p-1 rounded border border-gray-800 absolute left-1/2 -translate-x-1/2 backdrop-blur-sm">
               {[
                 { id: 'dashboard', label: 'KEYS', icon: LayoutGrid },
@@ -104,7 +108,7 @@ const App: React.FC = () => {
               
               <button 
                 onClick={handleLogout}
-                className="hidden md:flex text-gray-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest items-center gap-2"
+                className="hidden md:flex text-gray-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest items-center gap-2 hover:bg-white/5 p-2 rounded"
               >
                  <LogOut className="w-4 h-4" />
               </button>
@@ -118,7 +122,7 @@ const App: React.FC = () => {
            </div>
         </div>
 
-        {/* Mobile Menu Overlay */}
+        {/* Mobile Menu */}
         <AnimatePresence>
         {isMobileMenuOpen && (
            <motion.div 
@@ -168,22 +172,24 @@ const App: React.FC = () => {
         </AnimatePresence>
 
         {/* Main Content */}
-        <main className="flex-1 relative overflow-y-auto overflow-x-hidden custom-scrollbar p-4 md:p-8 bg-[#050505] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#111] via-[#050505] to-[#050505]">
-           <div className="w-full h-full max-w-6xl mx-auto pb-10 md:pb-0">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={activeTab}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="h-full"
-                >
-                  {activeTab === 'dashboard' && <KeyManager />}
-                  {activeTab === 'python' && <PythonIntegration />}
-                  {activeTab === 'api' && <ApiSection />}
-                </motion.div>
-              </AnimatePresence>
+        <main className="flex-1 relative overflow-hidden bg-[#050505] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#111] via-[#050505] to-[#050505]">
+           <div className="absolute inset-0 overflow-y-auto custom-scrollbar p-4 md:p-8 pb-24 md:pb-8">
+              <div className="w-full max-w-6xl mx-auto">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={activeTab}
+                      initial={{ opacity: 0, y: 10, filter: 'blur(5px)' }}
+                      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                      exit={{ opacity: 0, y: -10, filter: 'blur(5px)' }}
+                      transition={{ duration: 0.3, ease: "easeOut" }}
+                      className="h-full"
+                    >
+                      {activeTab === 'dashboard' && <KeyManager />}
+                      {activeTab === 'python' && <PythonIntegration />}
+                      {activeTab === 'api' && <ApiSection />}
+                    </motion.div>
+                  </AnimatePresence>
+              </div>
            </div>
         </main>
       </div>
