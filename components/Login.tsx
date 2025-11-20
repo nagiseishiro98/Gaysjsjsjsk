@@ -20,16 +20,18 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     try {
       await loginUser(email, password);
       // onLogin is optional now because App.tsx detects the auth change
-      // but we call it if provided for legacy support or immediate feedback
       if (onLogin) onLogin();
     } catch (err: any) {
-      console.error(err);
+      console.error("Login Error:", err);
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-email') {
         setError('INVALID CREDENTIALS');
       } else if (err.message && err.message.includes("Firebase not initialized")) {
         setError('DATABASE ERROR: CONFIG MISSING');
+      } else if (err.code === 'auth/network-request-failed') {
+        setError('NETWORK ERROR: OFFLINE');
       } else {
-        setError('CONNECTION FAILED');
+        // Show the specific error code to help debug "Connection Failed"
+        setError(`CONN_ERR: ${err.code || 'UNKNOWN'}`);
       }
     } finally {
       setIsLoading(false);
